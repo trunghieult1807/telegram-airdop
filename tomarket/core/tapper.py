@@ -1,10 +1,13 @@
 import asyncio
 from datetime import datetime
-from random import randint, choices
+import json
+import os,sys
+from random import randint, choices, random
 from time import time
 from urllib.parse import unquote, quote
 
 import aiohttp
+import pytz
 from aiohttp_proxy import ProxyConnector
 from better_proxy import Proxy
 from pyrogram import Client
@@ -20,6 +23,7 @@ from tomarket.exceptions import InvalidSession
 from tomarket.utils import logger
 from .agents import generate_random_user_agent
 from .headers import headers
+from .api_check import check_base_url
 
 def error_handler(func: Callable):
     @functools.wraps(func)
@@ -35,6 +39,15 @@ def convert_to_local_and_unix(iso_time):
     local_dt = dt.astimezone(get_localzone())
     unix_time = int(local_dt.timestamp())
     return unix_time
+
+def is_puzzle_expired(expiration_time_utc_str):
+    local_tz = get_localzone()
+    utc_tz = pytz.utc
+    expiration_time_utc = datetime.strptime(expiration_time_utc_str, '%Y-%m-%d %I:%M %p')
+    expiration_time_utc = utc_tz.localize(expiration_time_utc)
+    expiration_time_local = expiration_time_utc.astimezone(local_tz)
+    current_time = datetime.now(local_tz)
+    return current_time >= expiration_time_local
 
 class Tapper:
     def __init__(self, tg_client: Client, proxy: str | None):
@@ -75,7 +88,7 @@ class Tapper:
 
                     logger.warning(f"{self.session_name} | FloodWait {fl}")
                     logger.info(f"{self.session_name} | Sleep {fls}s")
-                    await asyncio.sleep(fls + 3)
+                    await asyncio.sleep(fls + 10)
             
             ref_id = choices([settings.REF_ID, "0000q294"], weights=[50, 50], k=1)[0]
             web_view = await self.tg_client.invoke(RequestAppWebView(
@@ -241,12 +254,12 @@ class Tapper:
                     access_token = await self.login(http_client=http_client, tg_web_data=init_data, ref_id=ref_id)
                     
                     if not access_token:
-                        logger.info(f"{self.session_name} | Failed login")
+                        logger.error(f"{self.session_name} | <light-red>Failed login</light-red>")
                         logger.info(f"{self.session_name} | Sleep <light-red>300s</light-red>")
                         await asyncio.sleep(delay=300)
                         continue
                     else:
-                        logger.info(f"{self.session_name} | <light-red>🍅 Login successful</light-red>")
+                        logger.info(f"{self.session_name} | <green>🍅 Login successful</green>")
                         http_client.headers["Authorization"] = f"{access_token}"
                         token_expiration = current_time + 3600
                         

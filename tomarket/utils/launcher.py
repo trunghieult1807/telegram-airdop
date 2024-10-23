@@ -3,28 +3,19 @@ import glob
 import asyncio
 import argparse
 from itertools import cycle
+import sys
 
 from pyrogram import Client
 from better_proxy import Proxy
 
 from tomarket.config import settings
+from tomarket.core.api_check import check_base_url
 from tomarket.utils import logger
 from tomarket.core.tapper import run_tapper
 from tomarket.core.registrator import register_sessions
 
 
 start_text = """
-
-███████╗██╗███████╗     ██████╗ ██████╗ ██████╗ ███████╗██████╗ 
-██╔════╝██║╚══███╔╝    ██╔════╝██╔═══██╗██╔══██╗██╔════╝██╔══██╗
-███████╗██║  ███╔╝     ██║     ██║   ██║██║  ██║█████╗  ██████╔╝
-╚════██║██║ ███╔╝      ██║     ██║   ██║██║  ██║██╔══╝  ██╔══██╗
-███████║██║███████╗    ╚██████╗╚██████╔╝██████╔╝███████╗██║  ██║
-╚══════╝╚═╝╚══════╝     ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝
-
-Tomarket BOT V 2.0
-Prepared and Developed by: F.Davoodi
-
 Select an action:
 
     1. Run clicker
@@ -80,6 +71,10 @@ async def get_tg_clients() -> list[Client]:
 async def process() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("-a", "--action", type=int, help="Action to perform")
+    
+    if check_base_url() is False:
+        sys.exit(
+            "Detected api change! Stopped the bot for safety.Please raise an issue on the GitHub repository.")
 
     logger.info(f"Detected {len(get_session_names())} sessions | {len(get_proxies())} proxies")
 

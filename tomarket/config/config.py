@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     AUTO_CLAIM_STARS: bool = True
     AUTO_CLAIM_COMBO: bool = True
     AUTO_RANK_UPGRADE: bool = True
+    AUTO_RAFFLE: bool = True
+    AUTO_CHANGE_NAME: bool = False
+    AUTO_ADD_WALLET: bool = False
 
     USE_RANDOM_DELAY_IN_RUN: bool = True
     RANDOM_DELAY_IN_RUN: list[int] = [0, 15]
