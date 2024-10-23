@@ -1,0 +1,6 @@
+sessions/
+__pycache__/
+*.tar
+.env
+*.pem
+Makefile

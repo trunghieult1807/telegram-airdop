@@ -1,0 +1,10 @@
+services:
+  aio:
+    build: .
+    stop_signal: SIGINT
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /app
