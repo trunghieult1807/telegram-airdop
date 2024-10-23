@@ -7,6 +7,7 @@ import asyncio
 from coinsweeper.core.tapper import run_tapper as coinsweeper
 from tomarket.core.tapper import run_tapper as tomarket
 from okxracer.core.tapper import run_tapper as okxracer
+from notpixel.core.tapper import run_tapper as notpixel
 
 def get_session_names() -> list[str]:
     session_names = sorted(glob.glob("sessions/*.session"))
@@ -58,6 +59,8 @@ async def create_tasks(app_name: str) -> list[asyncio.Task]:
         target_function = tomarket
     elif app_name == "okxracer":
         target_function = okxracer
+    elif app_name == "notpixel":
+        target_function = notpixel
     return [
         asyncio.create_task(
             target_function(

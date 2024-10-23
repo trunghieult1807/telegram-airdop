@@ -10,6 +10,7 @@ async def main():
         *await create_tasks("tomarket"),
         *await create_tasks("coinsweeper"),
         *await create_tasks("okxracer"),
+        *await create_tasks("notpixel"),
     )
 
 
