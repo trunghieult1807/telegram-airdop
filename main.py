@@ -9,6 +9,7 @@ async def main():
     await asyncio.gather(
         *await create_tasks("tomarket"),
         *await create_tasks("coinsweeper"),
+        *await create_tasks("okxracer"),
     )
 
 
