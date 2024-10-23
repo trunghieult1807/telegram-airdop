@@ -3,6 +3,9 @@ import glob
 from pyrogram import Client
 from utils.config import settings
 import json
+import asyncio
+from coinsweeper.core.tapper import run_tapper as coinsweeper
+from tomarket.core.tapper import run_tapper as tomarket
 
 def get_session_names() -> list[str]:
     session_names = sorted(glob.glob("sessions/*.session"))
@@ -45,3 +48,19 @@ async def get_tg_clients(app_name: str) -> list[Client]:
         
 
     return tg_clients
+
+async def create_tasks(app_name: str) -> list[asyncio.Task]:
+    tg_clients = await get_tg_clients(app_name)
+    if app_name == "coinsweeper":
+        target_function = coinsweeper
+    elif app_name == "tomarket":
+        target_function = tomarket
+    return [
+        asyncio.create_task(
+            target_function(
+                tg_client=tg_client,
+                proxy=None,
+            )
+        )
+        for tg_client in tg_clients
+    ]
