@@ -9,6 +9,7 @@ from tomarket.core.tapper import run_tapper as tomarket
 from okxracer.core.tapper import run_tapper as okxracer
 from notpixel.core.tapper import run_tapper as notpixel
 from seed.core.tapper import run_tapper as seed
+from memefi.core.tapper import run_tapper as memefi
 
 def get_session_names() -> list[str]:
     session_names = sorted(glob.glob("sessions/*.session"))
@@ -64,6 +65,8 @@ async def create_tasks(app_name: str) -> list[asyncio.Task]:
         target_function = notpixel
     elif app_name == "seed":
         target_function = seed
+    elif app_name == "memefi":
+        target_function = memefi
     return [
         asyncio.create_task(
             target_function(

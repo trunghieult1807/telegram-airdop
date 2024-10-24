@@ -11,7 +11,8 @@ async def main():
         # *await create_tasks("notpixel"),
         # *await create_tasks("okxracer"),
         # *await create_tasks("tomarket"),
-        *await create_tasks("seed"),
+        # *await create_tasks("seed"),
+        *await create_tasks("memefi"),
     )
 
 
