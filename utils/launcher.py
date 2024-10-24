@@ -55,24 +55,21 @@ async def get_tg_clients(app_name: str) -> list[Client]:
 
 async def create_tasks(app_name: str) -> list[asyncio.Task]:
     tg_clients = await get_tg_clients(app_name)
-    if app_name == "coinsweeper":
-        target_function = coinsweeper
-    elif app_name == "tomarket":
-        target_function = tomarket
-    elif app_name == "okxracer":
-        target_function = okxracer
-    elif app_name == "notpixel":
-        target_function = notpixel
-    elif app_name == "seed":
-        target_function = seed
-    elif app_name == "memefi":
-        target_function = memefi
+    
+    app_functions = {
+        "coinsweeper": coinsweeper,
+        "tomarket": tomarket,
+        "okxracer": okxracer,
+        "notpixel": notpixel,
+        "seed": seed,
+        "memefi": memefi,
+    }
+
+    target_function = app_functions.get(app_name)
+    if not target_function:
+        raise ValueError(f"Unknown app name: {app_name}")
+
     return [
-        asyncio.create_task(
-            target_function(
-                tg_client=tg_client,
-                proxy=None,
-            )
-        )
+        asyncio.create_task(target_function(tg_client=tg_client, proxy=None))
         for tg_client in tg_clients
     ]

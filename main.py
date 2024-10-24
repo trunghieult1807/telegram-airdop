@@ -7,11 +7,11 @@ from dotenv import load_dotenv
 async def main():
     load_dotenv()
     await asyncio.gather(
-        # *await create_tasks("coinsweeper"),
-        # *await create_tasks("notpixel"),
-        # *await create_tasks("okxracer"),
-        # *await create_tasks("tomarket"),
-        # *await create_tasks("seed"),
+        *await create_tasks("coinsweeper"),
+        *await create_tasks("notpixel"),
+        *await create_tasks("okxracer"),
+        *await create_tasks("tomarket"),
+        *await create_tasks("seed"),
         *await create_tasks("memefi"),
     )
 
