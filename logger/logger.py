@@ -8,7 +8,7 @@ from utils.config import settings
 # Dictionary to store timestamps of requests for each appName
 request_log = defaultdict(list)
 
-def is_rate_limited(app_name, limit=3, window=60):
+def is_rate_limited(app_name, limit=settings.CHAT_LIMIT, window=settings.CHAT_LIMIT_WINDOW):
     """Check if appName has exceeded rate limit within the time window (in seconds)."""
     current_time = time.time()
     
