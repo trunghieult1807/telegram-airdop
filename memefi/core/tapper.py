@@ -397,7 +397,7 @@ class Tapper:
                     taps = randint(a=settings.RANDOM_TAPS_COUNT[0], b=settings.RANDOM_TAPS_COUNT[1])
                     if taps > boss_current_health:
                         taps = boss_max_health - boss_current_health - 10
-                        return taps
+                        # return taps
                     bot_config = await self._api.get_bot_config()
                     telegram_me = await self._api.get_telegram_me()
 
@@ -465,7 +465,7 @@ class Tapper:
                         taps += randint(a=settings.ADD_TAPS_ON_TURBO[0], b=settings.ADD_TAPS_ON_TURBO[1])
                         if taps > boss_current_health:
                             taps = boss_max_health - boss_current_health - 10
-                            return taps
+                            # return taps
 
                         need_energy = 0
 
@@ -514,19 +514,14 @@ class Tapper:
                         status = await self._api.set_next_boss()
                         if status is True:
                             self.log.success(f"✅ Successful setting next boss: <m>{current_boss_level + 1}</m>")
-                    try_num = 1
-                    while try_num <= 4:
-                        taps_status = await self._api.send_taps(nonce=nonce, taps=taps)
-                        taps_new_balance = taps_status['coinsAmount']
-                        calc_taps = taps_new_balance - balance
-                        if calc_taps > 0:
-                            break
-                        try_num+=1
-                        taps -=100
-                        await asyncio.sleep(delay=1)
-                        self.log.info(f"Tap fail, retry...")
+
+                    taps_status = await self._api.send_taps(nonce=nonce, taps=taps)
+                    taps_new_balance = taps_status['coinsAmount']
                     
+                    await asyncio.sleep(delay=5)
                     
+                    calc_taps = taps_new_balance - balance
+
                     if calc_taps > 0:
                         self.log.success(f"✅ Successful tapped! 🔨 | 👉 Current energy: {available_energy} "
                             f"| ⚡️ Minimum energy limit: {settings.MIN_AVAILABLE_ENERGY} | "

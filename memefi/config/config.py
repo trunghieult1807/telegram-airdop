@@ -14,11 +14,11 @@ class Settings(BaseSettings):
     MIN_AVAILABLE_ENERGY: int = 300
     SLEEP_BY_MIN_ENERGY: int = 314
 
-    ADD_TAPS_ON_TURBO: list[int] = [2500, 2800]
+    ADD_TAPS_ON_TURBO: list[int] = [12000, 13000]
 
     AUTO_BUY_TAPBOT: bool = True
 
-    AUTO_UPGRADE_TAP: bool = True
+    AUTO_UPGRADE_TAP: bool = False
     MAX_TAP_LEVEL: int = 5
     AUTO_UPGRADE_ENERGY: bool = False
     MAX_ENERGY_LEVEL: int = 5
@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     EMERGENCY_STOP: bool = False
 
     ROLL_CASINO: bool = True
-    VALUE_SPIN: int = 10
+    VALUE_SPIN: int = 25
     LOTTERY_INFO: bool = True
 
     LINEA_WALLET: bool = False
