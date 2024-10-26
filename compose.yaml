@@ -1,8 +1,11 @@
 services:
-  aio:
+  bot:
     build: .
-    stop_signal: SIGINT
-    restart: unless-stopped
+    volumes:
+      - .:/app
+    command: python3 main.py
+    tty: true
+    stdin_open: true
     develop:
       watch:
         - action: sync

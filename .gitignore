@@ -3,5 +3,4 @@ __pycache__/
 *.tar
 .env
 *.pem
-Makefile
 src.txt
