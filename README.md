@@ -12,6 +12,7 @@
     <a href="https://github.com/trunghieult1807/telegram-airdop/network/members"><img src="https://img.shields.io/github/forks/trunghieult1807/telegram-airdop?style=social" alt="GitHub forks"></a>
     <a href="https://github.com/trunghieult1807/telegram-airdop/watchers"><img src="https://img.shields.io/github/watchers/trunghieult1807/telegram-airdop?style=social" alt="GitHub watchers"></a>
 </p>
+
 [![Static Badge](https://img.shields.io/badge/Telegram-Bot%20Link-Link?style=for-the-badge&logo=Telegram&logoColor=white&logoSize=auto&color=blue)](https://t.me/BybitCoinsweeper_Bot?start=referredBy=5268227136)
 [![Static Badge](https://img.shields.io/badge/Telegram-Channel-Link?style=for-the-badge&logo=Telegram&logoColor=white&logoSize=auto&color=blue)](https://t.me/EwwMD)
 
@@ -31,15 +32,15 @@
 | Auto play game                                                |     ✔️     |
 | Support for pyrogram .session			                        |     ✔️     |
 
-## [Settings](https://github.com/Cybertat1on/BybitCoinsweeper/blob/main/.env-example/)
-| Settings 					 |													 Description 					                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         	 |
-|----------------------------|:-------------------------------------------------------------------------------------:|
-| **API_ID / API_HASH**      | Platform data from which to run the Telegram session (default - android)              |       
-| **REF_LINK**               | Put your ref link here 					                                             |
-| **AUTO_PLAY**              | Auto play game (default: True)                                                        |
-| **GAME_PLAY_EACH_ROUND**   | Random number of game play in one round (default: [2, 4])                             |
-| **TIME_PLAY_EACH_GAME**    |Random time in second to play each game (default: [130, 180])                          |
-| **USE_PROXY_FROM_FILE**    | Whether to use a proxy from the bot/config/proxies.txt file (default: False)          |
+## Settings
+| Settings                   | Description                                                                            |
+|----------------------------|----------------------------------------------------------------------------------------|
+| **API_ID / API_HASH**      | Platform data from which to run the Telegram session (default - android)               |       
+| **REF_LINK**               | Put your ref link here                                                                 |
+| **AUTO_PLAY**              | Auto play game (default: True)                                                         |
+| **GAME_PLAY_EACH_ROUND**   | Random number of game play in one round (default: [2, 4])                              |
+| **TIME_PLAY_EACH_GAME**    | Random time in seconds to play each game (default: [130, 180])                         |
+| **USE_PROXY_FROM_FILE**    | Whether to use a proxy from the bot/config/proxies.txt file (default: False)           |
 
 
 ## Quick Start 📚
