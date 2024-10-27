@@ -1,4 +1,6 @@
-FROM python:3.10.11-alpine3.18
+FROM python:3.10-alpine
+
+RUN apk add --no-cache gcc musl-dev libffi-dev openssl-dev
 
 WORKDIR /app
 
