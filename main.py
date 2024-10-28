@@ -13,6 +13,7 @@ async def main():
         # *await create_tasks("tomarket"),
         *await create_tasks("seed"),
         *await create_tasks("memefi"),
+        *await create_tasks("blum"),
     )
 
 
