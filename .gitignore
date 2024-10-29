@@ -4,5 +4,6 @@ __pycache__/
 .env
 *.pem
 src.txt
+api_data/
 config.json
 user_agents.json
