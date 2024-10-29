@@ -13,15 +13,13 @@
     <a href="https://github.com/trunghieult1807/telegram-airdop/watchers"><img src="https://img.shields.io/github/watchers/trunghieult1807/telegram-airdop?style=social" alt="GitHub watchers"></a>
 </p>
 
-[![Static Badge](https://img.shields.io/badge/Telegram-Bot%20Link-Link?style=for-the-badge&logo=Telegram&logoColor=white&logoSize=auto&color=blue)](https://t.me/BybitCoinsweeper_Bot?start=referredBy=5268227136)
 [![Static Badge](https://img.shields.io/badge/Telegram-Channel-Link?style=for-the-badge&logo=Telegram&logoColor=white&logoSize=auto&color=blue)](https://t.me/EwwMD)
 
-#  Bot for BybitCoinsweeper
-
-![start-coinsweep](https://github.com/user-attachments/assets/935f66e9-0af7-4ac6-a97a-d61439a89aa0)
-
-
 # 🔥🔥 PYTHON version must be 3.10 - 3.11.5 🔥🔥
+
+#  1. Bybit Coinsweeper Bot [![Static Badge](https://img.shields.io/badge/Telegram-Bot%20Link-Link?style=for-the-badge&logo=Telegram&logoColor=white&logoSize=auto&color=blue)](https://t.me/BybitCoinsweeper_Bot?start=referredBy=5268227136)
+
+<!-- ![start-coinsweep](https://github.com/user-attachments/assets/935f66e9-0af7-4ac6-a97a-d61439a89aa0) -->
 
 ## Features  
 | Feature                                            	        |  Supported  |
@@ -41,6 +39,101 @@
 | **GAME_PLAY_EACH_ROUND**   | Random number of game play in one round (default: [2, 4])                              |
 | **TIME_PLAY_EACH_GAME**    | Random time in seconds to play each game (default: [130, 180])                         |
 | **USE_PROXY_FROM_FILE**    | Whether to use a proxy from the bot/config/proxies.txt file (default: False)           |
+
+#  2. Tomarket Bot [![Static Badge](https://img.shields.io/badge/Telegram-Bot%20Link-Link?style=for-the-badge&logo=Telegram&logoColor=white&logoSize=auto&color=blue)](https://t.me/Tomarket_ai_bot/app?startapp=0000q294)
+
+<!-- ![start-tomarket](https://github.com/user-attachments/assets/935f66e9-0af7-4ac6-a97a-d61439a89aa0) -->
+
+## Features  
+| Feature                                            	        |  Supported  |
+|---------------------------------------------------------------|:-----------:|
+| Multithreading                                                |     ✔️     |
+| Proxy binding to session                                      |     ✔️     |
+| Auto ref                                                      |     ✔️     |
+| Auto task complete                                            |     ✔️     |
+| Auto play game                                                |     ✔️     |
+| Support for pyrogram .session			                        |     ✔️     |
+| Auto farming                                                  |     ✔️     |
+| Automatic quest completion                                    |     ✔️     |
+| Auto Daily Reward                                             |     ✔️     |
+| Auto Claim Stars                                              |     ✔️     |
+| Auto Claim Combo                                              |     ✔️     |
+| Auto Rank Upgrade                                             |     ✔️     |
+
+## Settings
+| Settings                      | Description                                                                            |
+|-------------------------------|----------------------------------------------------------------------------------------|
+| **API_ID / API_HASH**         | Platform data from which to run the Telegram session (default - android)               |       
+| **REF_LINK**                  | Put your ref link here                                                                 |
+| **POINTS_COUNT**              | Number of points per game (e.g., [450, 600])                                           |
+| **FAKE_USERAGENT**            | Use a fake user agent for sessions (True / False)                                      |
+| **AUTO_PLAY_GAME**            | Automatically play games (True / False)                                                |
+| **AUTO_TASK**                 | Automatically complete tasks (True / False)                                            |
+| **AUTO_DAILY_REWARD**         | Automatically claim daily rewards (True / False)                                       |
+| **AUTO_CLAIM_STARS**          | Automatically claim star rewards (True / False)                                        |
+| **AUTO_CLAIM_COMBO**          | Automatically claim combo rewards (True / False)                                       |
+| **AUTO_RANK_UPGRADE**         | Automatically upgrade rank (True / False)                                              |
+| **USE_RANDOM_DELAY_IN_RUN**   | Whether to use random delay at startup (True / False)                                  |
+| **RANDOM_DELAY_IN_RUN**       | Random delay at startup (e.g. [0, 15])                                                 |
+| **USE_PROXY_FROM_FILE**       | Whether to use a proxy from the bot/config/proxies.txt file (default: False)           |
+
+#  3. OKX Racer Bot [![Static Badge](https://img.shields.io/badge/Telegram-Bot%20Link-Link?style=for-the-badge&logo=Telegram&logoColor=white&logoSize=auto&color=blue)](https://t.me/OKX_official_bot/OKX_Racer?startapp=linkCode_61121385)
+
+<!-- ![start-okxracer](https://github.com/user-attachments/assets/935f66e9-0af7-4ac6-a97a-d61439a89aa0) -->
+
+## Features  
+| Feature                                            	        |  Supported  |
+|---------------------------------------------------------------|:-----------:|
+| Multithreading                                                |     ✔️     |
+| Proxy binding to session                                      |     ✔️     |
+| Auto ref                                                      |     ✔️     |
+| Auto task complete                                            |     ✔️     |
+| Support for pyrogram .session			                        |     ✔️     |
+| Auto farming                                                  |     ✔️     |
+| Auto boost                                                    |     ✔️     |
+| Auto check in                                                 |     ✔️     |
+
+## Settings
+| Settings                      | Description                                                                            |
+|-------------------------------|----------------------------------------------------------------------------------------|
+| **API_ID / API_HASH**         | Platform data from which to run the Telegram session (default - android)               |       
+| **REF_LINK**                  | Put your ref link here                                                                 |
+| **SLEEP_TIME**                | Sleep time between cycles (by default - [300, 500])                                    |
+| **FUEL_TANK_BOOST**           | Buying Fuel tank boost (by default - True)                                             |
+| **RELOAD_TANK_BOOST**         | Buying Reload tank boost (by default - True)                                           |
+| **TURBO_CHARGER_BOOST**       | Buying Turbo charger boost (by default - True)                                         |
+| **AUTO_TASK**                 | Auto tasks (except KYC task) (default - True)                                          |
+| **RANDOM_PREDICTION**         | Using random for prediction (default - True)                                           |
+| **MAX_COMBO_COUNT**           | Max combo count (default - 28)                                                         |
+| **USE_PROXY_FROM_FILE**       | Whether to use a proxy from the bot/config/proxies.txt file (default: False)           |
+
+#  4. Blum Bot [![Static Badge](https://img.shields.io/badge/Telegram-Bot%20Link-Link?style=for-the-badge&logo=Telegram&logoColor=white&logoSize=auto&color=blue)](https://t.me/blum/app?startapp=ref_DTPFxJjw0W)
+
+<!-- ![start-blum](https://github.com/user-attachments/assets/935f66e9-0af7-4ac6-a97a-d61439a89aa0) -->
+
+## Features  
+| Feature                                            	        |  Supported  |
+|---------------------------------------------------------------|:-----------:|
+| Multithreading                                                |     ✔️     |
+| Proxy binding to session                                      |     ✔️     |
+| Auto ref                                                      |     ✔️     |
+| Auto task complete                                            |     ✔️     |
+| Auto play game                                                |     ✔️     |
+| Support for pyrogram .session			                        |     ✔️     |
+
+## Settings
+| Settings                      | Description                                                                            |
+|-------------------------------|----------------------------------------------------------------------------------------|
+| **API_ID / API_HASH**         | Platform data from which to run the Telegram session (default - android)               |       
+| **REF_LINK**                  | Put your ref link here                                                                 |
+| **PLAY_GAMES**                | Play games (default is True)                                                           |
+| **POINTS**                    | Points per game (default is [190, 230])                                                |
+| **AUTO_TASK**                 | Auto tasks (default - True)                                                            |
+| **TRIBE_CHAT_TAG**            | Tribe to join                                                                          |
+| **USE_RANDOM_DELAY_IN_RUN**   | Random delay (default is [5, 30])                                                      |
+| **USE_REF**                   | Register accounts with ur referral or not (default - False)                            |
+| **REF_ID**                    | Your referral argument (comes after app/startapp? in your referral link)               |
+| **USE_PROXY_FROM_FILE**       | Whether to use a proxy from the bot/config/proxies.txt file (default: False)           |
 
 
 ## Quick Start 📚
@@ -138,4 +231,3 @@ You can also use arguments for quick start, for example:
 ```
 
 ***
-
