@@ -1,6 +1,5 @@
 import asyncio
 import random
-import sys
 from itertools import cycle
 from urllib.parse import unquote
 
@@ -10,21 +9,21 @@ import requests
 from aiocfscrape import CloudflareScraper
 from aiohttp_proxy import ProxyConnector
 from better_proxy import Proxy
-from notpixel.core.agents import generate_random_user_agent
-from notpixel.config import settings
+from bot.core.agents import generate_random_user_agent
+from bot.config import settings
 from datetime import datetime, timedelta
 from tzlocal import get_localzone
 import time as time_module
 
-from notpixel.utils import logger
-from notpixel.exceptions import InvalidSession
+from bot.utils import logger
+from bot.exceptions import InvalidSession
 from .headers import headers
 from random import randint
 import os
 from PIL import Image
 import io
 import traceback
-from notpixel.core.image_checker import get_cords_and_color, template_to_join, inform, reachable
+from bot.core.image_checker import get_cords_and_color, template_to_join, inform, reachable
 import urllib3
 import json
 
@@ -57,6 +56,7 @@ class Tapper:
                            "#00756F", "#2450A4", "#493AC1", "#811E9F", "#A00357", "#6D482F"]
         self.multi_thread = multi_thread
         self.my_ref = "f6624523270"
+        self.clb_ref = "f7385650582"
         self.socket = None
         self.default_template = {
             'x': 244,
@@ -450,17 +450,28 @@ class Tapper:
 
         try:
             logger.info(f"{self.session_name} | Downloading image from server...")
-            res = session.get(url, headers=image_headers)
+            if "https://fra1.digitaloceanspaces.com/" in url:
+                response = requests.get(url, stream=True)
+                if response.status_code == 200:
+                    with open(image_filename, "wb") as file:
+                        for chunk in response.iter_content(1024):
+                            file.write(chunk)
 
-            if res.status_code == 200:
-                img_data = res.content
-                img = Image.open(io.BytesIO(img_data))
-
-                img.save(image_filename)
+                img = Image.open(image_filename)
+                img.load()
                 return img
             else:
-                print(res.text)
-                raise Exception(f"Failed to download image from {url}, status: {res.status_code}")
+                res = session.get(url, headers=image_headers)
+
+                if res.status_code == 200:
+                    img_data = res.content
+                    img = Image.open(io.BytesIO(img_data))
+
+                    img.save(image_filename)
+                    return img
+                else:
+                    print(res.text)
+                    raise Exception(f"Failed to download image from {url}, status: {res.status_code}")
         except Exception as e:
             # traceback.print_exc()
             logger.error(f"{self.session_name} | Error while loading image from url: {url} | Error: {e}")
@@ -573,7 +584,7 @@ class Tapper:
                                                 'image': template_image,
                                             }
                                     if not self.default_template['image']:
-                                        image_url = 'https://app.notpx.app/assets/dungeon_4-B7Qp6JGr.png'
+                                        image_url = 'https://app.notpx.app/assets/halloween-DrqzeAH-.png'
                                         image_headers = headers.copy()
                                         image_headers['Referer'] = 'https://app.notpx.app/'
                                         self.default_template['image'] = await self.get_image(session, image_url,

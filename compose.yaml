@@ -1,8 +1,8 @@
 services:
   bot:
-    build: .
+    image: telegram-airdop-bot
     volumes:
-      - .:/app
+      - /home/ec2-user/sessions:/app/sessions
     command: python3 main.py
     tty: true
     stdin_open: true

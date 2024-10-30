@@ -10,6 +10,7 @@ from okxracer.core.tapper import run_tapper as okxracer
 from notpixel.core.tapper import run_tapper as notpixel
 from seed.core.tapper import run_tapper as seed
 from memefi.core.tapper import run_tapper as memefi
+from blum.core.tapper import run_tapper as blum
 
 def get_session_names() -> list[str]:
     session_names = sorted(glob.glob("sessions/*.session"))
@@ -63,6 +64,7 @@ async def create_tasks(app_name: str) -> list[asyncio.Task]:
         "notpixel": notpixel,
         "seed": seed,
         "memefi": memefi,
+        "blum": blum,
     }
 
     target_function = app_functions.get(app_name)
