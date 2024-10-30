@@ -6,7 +6,7 @@ build:
 
 .PHONY: up
 up:
-	docker compose up
+	docker compose up --remove-orphans
 
 .PHONY: down
 down:
@@ -18,8 +18,16 @@ destroy:
 
 .PHONY: shell
 shell:
-	docker compose exec $(CONTAINER) sh
+	docker compose run $(CONTAINER) sh
 
 .PHONY: log
 log:
 	docker compose logs -f $(CONTAINER)
+
+.PHONY: safe
+safe:
+	@if [ -z "$(app)" ]; then \
+		echo "Error: Please choose correct app."; \
+		exit 1; \
+	fi
+	@mv api_data/$(app)/api_data.new.json api_data/$(app)/api_data.json
