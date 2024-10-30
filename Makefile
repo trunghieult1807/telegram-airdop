@@ -30,7 +30,7 @@ env:
 
 .PHONY: deploy
 EC2_USER=ec2-user
-EC2_IP=
+EC2_IP=3.26.190.206
 KEY_PATH=../mrluas.pem
 deploy:
 	@docker save -o telegram-airdop-bot.tar telegram-airdop-bot:latest \
