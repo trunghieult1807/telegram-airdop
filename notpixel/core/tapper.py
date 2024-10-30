@@ -21,6 +21,7 @@ import time as time_module
 
 from notpixel.core.image_checker import get_cords_and_color, template_to_join, inform, reachable
 from notpixel.utils import logger
+from notpixel.utils.detector import detector
 from notpixel.exceptions import InvalidSession
 from .headers import headers
 from random import randint, uniform
@@ -30,7 +31,6 @@ import os
 from PIL import Image
 import io
 import traceback
-from notpixel.utils.ps import check_base_url
 import sys
 import cloudscraper
 
@@ -561,7 +561,7 @@ class Tapper:
         token_live_time = randint(1000, 1500)
         while True:
             try:
-                if check_base_url() is False:
+                if detector.check_api() is False:
                     if settings.ADVANCED_ANTI_DETECTION:
                         self.can_run = False
                         logger.warning(

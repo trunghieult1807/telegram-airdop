@@ -22,7 +22,7 @@ from coinsweeper.core.headers import headers
 from random import randint
 import math
 
-from coinsweeper.utils.ps import check_base_url
+from coinsweeper.utils.detector import detector
 
 
 def value(i):
@@ -170,7 +170,7 @@ class Tapper:
         while True:
             can_run = True
             try:
-                if check_base_url() is False:
+                if detector.check_api() is False:
                     if settings.ADVANCED_ANTI_DETECTION:
                         logger.warning(
                             "<yellow>Detected index js file change. Contact me to check if it's safe to continue: https://t.me/vanhbakaaa</yellow>")

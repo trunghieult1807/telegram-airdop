@@ -28,7 +28,7 @@ from notpixel.core.image_checker import get_cords_and_color, template_to_join, i
 import urllib3
 import json
 
-from ..utils.ps import check_base_url
+from ..utils.detector import detector
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -488,7 +488,7 @@ class Tapper:
         token_live_time = randint(1000, 1500)
         while True:
             try:
-                if check_base_url() is False:
+                if detector.check_api() is False:
                     if settings.ADVANCED_ANTI_DETECTION:
                         self.can_run = False
                         logger.warning(
