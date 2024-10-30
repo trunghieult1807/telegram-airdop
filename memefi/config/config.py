@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     USE_RANDOM_DELAY_IN_RUN: bool = True
     RANDOM_DELAY_IN_RUN: list[int] = [3, 15]
 
-    WATCH_VIDEO: bool = False
+    WATCH_VIDEO: bool = True
 
 
 settings = Settings()

@@ -38,6 +38,7 @@ class Tapper:
         self.video_codes = VideoCodes()
         self.log = logger
         self._api = MemeFiApi(logger=logger)
+        self._last_update_codes_timestamp = 0
 
         self.session_ug_dict = self.load_user_agents() or []
         headers['User-Agent'] = self.check_user_agent()
@@ -224,7 +225,12 @@ class Tapper:
             self.log.error(f"Error getting ETH price: {error}")
             return None
 
-    async def watch_videos(self, http_client):
+    async def watch_videos(self):
+        if self._last_update_codes_timestamp == self.video_codes.get_last_update_timestamp() + 1:
+            return
+
+        self._last_update_codes_timestamp = self.video_codes.get_last_update_timestamp() + 1
+
         campaigns = await self._api.get_campaigns()
         if campaigns is None:
             self.log.error("Campaigns list is None")
@@ -233,42 +239,40 @@ class Tapper:
         if not campaigns:
             return
 
-        skip_task_list = TimedList()
         for campaign in campaigns:
             await asyncio.sleep(delay=5)
             tasks_list: list = await self._api.get_tasks_list(campaigns_id=campaign['id'])
             for task in tasks_list:
-                self.log.info(f"Skipped tasks: <g>{skip_task_list.get_items()}</g>")
-                if skip_task_list.contains(task['name']):
-                    continue
                 await asyncio.sleep(delay=randint(5, 15))
-                self.log.info(f"Video: <g>{task['name']}</g> | Status: <y>{task['status']}</y>")
+                self.log.info(f"Video: <r>{task['name']}</r> | Status: <y>{task['status']}</y>")
 
                 if task['status'] != 'Verification':
                     task = await self._api.verify_campaign(task_id=task['id'])
-                    self.log.info(f"Video: <g>{task['name']}</g> | Start verifying")
+                    self.log.info(f"Video: <r>{task['name']}</r> | Start verifying")
 
                 delta_time = parser.isoparse(task['verificationAvailableAt']).timestamp() - \
                              datetime.now(timezone.utc).timestamp()
 
                 if task['status'] == 'Verification' and delta_time > 0:
                     count_sec_need_wait = delta_time + randint(5, 15)
-                    self.log.info(f"Video: <g>{task['name']}</g> | Sleep: {int(count_sec_need_wait)}s.")
+                    self.log.info(f"Video: <r>{task['name']}</r> | Sleep: {int(count_sec_need_wait)}s.")
                     await asyncio.sleep(delay=count_sec_need_wait)
 
+                code = None
                 if task['taskVerificationType'] == "SecretCode":
                     code = self.video_codes.get_video_code(task['name'])
                     if not code:
-                        skip_task_list.add(task['name'])
-                        self.log.warning(f"Video: <g>{task['name']}</g> | <y>Code not found!</y>")
+                        self.log.warning(f"Video: <r>{task['name']}</r> | <y>Code not found! ({task['link']})</y>")
                         continue
-                    self.log.info(f"Video: <g>{task['name']}</g> | Use code <g>{code}</g>.")
+                    self.log.info(f"Video: <r>{task['name']}</r> | Use code <g>{code}</g>.")
                     complete_task = await self._api.complete_task(user_task_id=task['userTaskId'], code=code)
                 else:
                     complete_task = await self._api.complete_task(user_task_id=task['userTaskId'])
+                if (not complete_task or complete_task.get("complete_task") != 'Completed') and code:
+                    self.video_codes.mark_code_as_incorrect(task['name'], code)
                 message = f"<g>{complete_task.get('status')}</g>" if complete_task \
-                    else f"<g>Error from complete_task method.</g>"
-                self.log.info(f"Video: <g>{task['name']}</g> | Status: {message}")
+                    else f"<r>Error from complete_task method.</r>"
+                self.log.info(f"Video: <r>{task['name']}</r> | Status: {message}")
 
 
     async def update_authorization(self, http_client, proxy) -> bool:
@@ -334,14 +338,14 @@ class Tapper:
                     spins = profile_data.get('spinEnergyTotal', 0)
 
                     self.log.info(f"Current boss level: <m>{current_boss_level}</m> | "
-                                f"Boss health: <e>{boss_current_health}</e> out of <g>{boss_max_health}</g> | "
+                                f"Boss health: <e>{boss_current_health}</e> out of <r>{boss_max_health}</r> | "
                                 f"Balance: <c>{balance}</c> | Spins: <le>{spins}</le>")
 
                     if settings.USE_RANDOM_DELAY_IN_RUN:
                         random_delay = random.randint(settings.RANDOM_DELAY_IN_RUN[0],
                                                       settings.RANDOM_DELAY_IN_RUN[1])
                         self.log.info(f"Bot will start in <y>{random_delay}s</y>")
-                        # await asyncio.sleep(random_delay)
+                        await asyncio.sleep(random_delay)
 
                     if settings.LINEA_WALLET is True:
                         linea_wallet = await self._api.wallet_check()
@@ -369,7 +373,7 @@ class Tapper:
                             self.log.success(f"✅ Successful setting next boss: <m>{current_boss_level + 1}</m>")
 
                     if settings.WATCH_VIDEO:
-                       await self.watch_videos(http_client=http_client)
+                       await self.watch_videos()
 
                     if settings.ROLL_CASINO:
                         while spins > settings.VALUE_SPIN:
@@ -517,11 +521,7 @@ class Tapper:
 
                     taps_status = await self._api.send_taps(nonce=nonce, taps=taps)
                     taps_new_balance = taps_status['coinsAmount']
-                    
-                    await asyncio.sleep(delay=5)
-                    
                     calc_taps = taps_new_balance - balance
-
                     if calc_taps > 0:
                         self.log.success(f"✅ Successful tapped! 🔨 | 👉 Current energy: {available_energy} "
                             f"| ⚡️ Minimum energy limit: {settings.MIN_AVAILABLE_ENERGY} | "
@@ -535,8 +535,8 @@ class Tapper:
                             f"Boss health: <e>{boss_current_health}</e>")
                         balance = new_balance
                         self.log.warning(f"❌ MemeFi server error 500")
-                        self.log.info(f"😴 Sleep 10m")
-                        # await asyncio.sleep(delay=600)
+                        self.log.info(f"😴 Sleep 1m")
+                        await asyncio.sleep(delay=60)
                         is_no_balance = True
 
                     if active_turbo is False:
