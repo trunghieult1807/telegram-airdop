@@ -135,6 +135,8 @@ class ApiDetector:
         
         if os.path.exists(self.analyzed_api_file):
             os.remove(self.analyzed_api_file)
+        if os.path.exists(self.invalid_apis_file):
+            os.remove(self.invalid_apis_file)
         os.rename(self.new_analyzed_api_file, self.analyzed_api_file)
         
         return True
