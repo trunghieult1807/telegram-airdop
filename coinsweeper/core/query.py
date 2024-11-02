@@ -17,7 +17,7 @@ from better_proxy import Proxy
 from coinsweeper.config import settings
 
 from coinsweeper.utils import logger
-from coinsweeper.exceptions import InvalidSession
+from exceptions import InvalidSession, ApiChangeDetected
 from coinsweeper.core.headers import headers
 from random import randint
 import math
@@ -170,14 +170,8 @@ class Tapper:
         while True:
             can_run = True
             try:
-                if detector.check_api() is False:
-                    if settings.ADVANCED_ANTI_DETECTION:
-                        logger.warning(
-                            "<yellow>Detected index js file change. Contact me to check if it's safe to continue: https://t.me/vanhbakaaa</yellow>")
-                    else:
-                        logger.warning(
-                            "<yellow>Detected api change! Stopped the bot for safety. Contact me here to update the bot: https://t.me/vanhbakaaa</yellow>")
-                    can_run = False
+                if settings.ADVANCED_ANTI_DETECTION and not detector.check_api():
+                    raise ApiChangeDetected
 
                 if can_run:
                     if time() - jwt_token_create_time >= jwt_live_time:
@@ -362,9 +356,10 @@ class Tapper:
 
             except InvalidSession as error:
                 raise error
-
+            except ApiChangeDetected as error:
+                logger.error(error)
+                await asyncio.sleep(600)
             except Exception as error:
-
                 logger.error(f"{self.session_name} | Unknown error: {error}")
                 await asyncio.sleep(delay=randint(60, 120))
 

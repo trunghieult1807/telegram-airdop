@@ -19,7 +19,7 @@ from typing import Callable
 import functools
 from tzlocal import get_localzone
 from tomarket.config import settings
-from tomarket.exceptions import InvalidSession, ApiChangeDetected
+from exceptions import InvalidSession, ApiChangeDetected
 from tomarket.utils import logger
 from .agents import generate_random_user_agent
 from .headers import headers
@@ -237,7 +237,7 @@ class Tapper:
         
         while True:
             try:
-                if not detector.check_api():
+                if settings.ADVANCED_ANTI_DETECTION and not detector.check_api():
                     raise ApiChangeDetected
                         
                 if http_client.closed:
