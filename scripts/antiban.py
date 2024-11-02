@@ -1,7 +1,5 @@
 import sys
-from scripts.utils import empty_directory
 from logger.logger import glogger
-from utils.api_detector import save_api_data, DATA_DIR
 from coinsweeper.utils.detector import detector as coinsweeper_detector
 from notpixel.utils.detector import detector as notpixel_detector
 from seed.utils.detector import detector as seed_detector
@@ -14,12 +12,10 @@ detectors = [
     tomarket_detector,
 ]
 
-def init_antiban():
+def init():
     for detector in detectors:
         detector.init_api_data()
         glogger.success(f"{detector.app_name} api data initialized")
-    check_apis()
-    mark_safe_apis()
 
 def mark_safe_apis():
     for detector in detectors:
@@ -38,8 +34,9 @@ def check_apis():
 
 def run():
     match sys.argv[1]:
-        case 'init':
-            init_antiban()
+        case 'setup':
+            init()
+            mark_safe_apis()
         case 'check':
             check_apis()
         case 'safe':

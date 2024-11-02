@@ -9,9 +9,9 @@ chmod +x bin/*
 ## 2. Init antiban
 
 ```sh
-bin/antiban.sh init
+bin/antiban.sh setup
 # Or
-python3 -m scripts.antiban init
+python3 -m scripts.antiban setup
 ```
 
 ---
