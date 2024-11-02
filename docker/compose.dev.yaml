@@ -1,0 +1,9 @@
+services:
+  bot-dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    volumes:
+      - ..:/app
+    tty: true
+    stdin_open: true

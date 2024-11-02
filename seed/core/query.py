@@ -11,13 +11,13 @@ from seed.core.agents import generate_random_user_agent
 from seed.config import settings
 
 from seed.utils import logger
-from seed.exceptions import InvalidSession
+from exceptions import InvalidSession, ApiChangeDetected
 from .headers import headers
 
 from random import randint, uniform
 import traceback
 import time
-from ..utils.ps import check_base_url
+from ..utils.detector import detector
 
 # api endpoint
 api_endpoint = "https://elb.seeddao.org/"
@@ -579,16 +579,8 @@ class Tapper:
         token_live_time = randint(3500, 3600)
         while True:
             try:
-                if check_base_url() is False:
-                    self.can_run = False
-                    if settings.ADVANCED_ANTI_DETECTION:
-                        logger.warning(
-                            "<yellow>Detected index js file change. Contact me to check if it's safe to continue: https://t.me/vanhbakaaa</yellow>")
-                    else:
-                        logger.warning(
-                            "<yellow>Detected api change! Stopped the bot for safety. Contact me here to update the bot: https://t.me/vanhbakaaa</yellow>")
-                else:
-                    self.can_run = True
+                if settings.ADVANCED_ANTI_DETECTION and not detector.check_api():
+                    raise ApiChangeDetected
 
                 if self.can_run:
                     if time.time() - access_token_created_time >= token_live_time:
@@ -745,7 +737,9 @@ class Tapper:
                 await asyncio.sleep(delay=delay_time)
             except InvalidSession as error:
                 raise error
-
+            except ApiChangeDetected as error:
+                logger.error(error)
+                await asyncio.sleep(600)
             except Exception as error:
                 traceback.print_exc()
                 logger.error(f"{self.session_name} | Unknown error: {error}")

@@ -19,11 +19,11 @@ from typing import Callable
 import functools
 from tzlocal import get_localzone
 from tomarket.config import settings
-from tomarket.exceptions import InvalidSession
+from exceptions import InvalidSession, ApiChangeDetected
 from tomarket.utils import logger
 from .agents import generate_random_user_agent
 from .headers import headers
-from .api_check import check_base_url
+from tomarket.utils.detector import detector
 
 def error_handler(func: Callable):
     @functools.wraps(func)
@@ -237,6 +237,9 @@ class Tapper:
         
         while True:
             try:
+                if settings.ADVANCED_ANTI_DETECTION and not detector.check_api():
+                    raise ApiChangeDetected
+                        
                 if http_client.closed:
                     if proxy_conn:
                         if not proxy_conn.closed:
@@ -427,7 +430,9 @@ class Tapper:
                         proxy_conn.close()
             except InvalidSession as error:
                 raise error
-
+            except ApiChangeDetected as error:
+                logger.error(error)
+                await asyncio.sleep(600)
             except Exception as error:
                 logger.error(f"{self.session_name} | Unknown error: {error}")
                 await asyncio.sleep(delay=3)

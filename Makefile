@@ -1,4 +1,5 @@
 CONTAINER=bot
+DEVCONTAINER=bot-dev
 
 .PHONY: build
 build:
@@ -6,7 +7,7 @@ build:
 
 .PHONY: up
 up:
-	docker compose up
+	docker compose up --remove-orphans
 
 .PHONY: down
 down:
@@ -18,11 +19,19 @@ destroy:
 
 .PHONY: shell
 shell:
-	docker compose exec $(CONTAINER) sh
+	docker compose run $(CONTAINER) sh
 
 .PHONY: log
 log:
 	docker compose logs -f $(CONTAINER)
+
+.PHONY: safe
+safe:
+	@if [ -z "$(app)" ]; then \
+		echo "Error: Please choose correct app."; \
+		exit 1; \
+	fi
+	@mv api_data/$(app)/api_data.new.json api_data/$(app)/api_data.json
 
 .PHONE: env
 env:
@@ -37,3 +46,24 @@ deploy:
 	&& scp -i $(KEY_PATH) telegram-airdop-bot.tar $(EC2_USER)@$(EC2_IP):~/images/telegram-airdop-bot.tar \
 	&& scp -i $(KEY_PATH) compose.yaml $(EC2_USER)@$(EC2_IP):~/images/compose.yaml \
 	&& ssh -i $(KEY_PATH) $(EC2_USER)@$(EC2_IP) 'docker stop telegram-airdop-bot || true && docker rm telegram-airdop-bot || true && docker load -i ~/images/telegram-airdop-bot.tar && cd images && docker-compose up -d'
+
+# Local run
+.PHONY: build-dev
+build-dev:
+	docker compose -f docker/compose.dev.yaml build
+
+.PHONY: start-dev
+start-dev:
+	docker compose -f docker/compose.dev.yaml up -d
+
+.PHONY: shell-dev
+shell-dev:
+	docker compose -f docker/compose.dev.yaml exec $(DEVCONTAINER) sh
+
+.PHONY: stop-dev
+stop-dev:
+	docker compose -f docker/compose.dev.yaml down
+
+.PHONY: destroy-dev
+destroy-dev:
+	docker compose -f docker/compose.dev.yaml down --volumes --rmi all

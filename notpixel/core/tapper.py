@@ -21,7 +21,8 @@ import time as time_module
 
 from notpixel.core.image_checker import get_cords_and_color, template_to_join, inform, reachable
 from notpixel.utils import logger
-from notpixel.exceptions import InvalidSession
+from notpixel.utils.detector import detector
+from exceptions import InvalidSession, ApiChangeDetected
 from .headers import headers
 from random import randint, uniform
 import urllib3
@@ -30,7 +31,6 @@ import os
 from PIL import Image
 import io
 import traceback
-from notpixel.utils.ps import check_base_url
 import sys
 import cloudscraper
 
@@ -614,17 +614,8 @@ class Tapper:
         token_live_time = randint(1000, 1500)
         while True:
             try:
-                if check_base_url() is False:
-                    if settings.ADVANCED_ANTI_DETECTION:
-                        self.can_run = False
-                        logger.warning(
-                            "<yellow>Detected index js file change. Contact me to check if it's safe to continue: https://t.me/Thilubhaii </yellow>")
-                    else:
-                        self.can_run = False
-                        logger.warning(
-                            "<yellow>Detected api change! Stoped the bot for safety. Contact me here to update the bot: https://t.me/Thilubhaii </yellow>")
-                else:
-                    self.can_run = True
+                if settings.ADVANCED_ANTI_DETECTION and not detector.check_api():
+                    raise ApiChangeDetected
 
                 if self.can_run:
                     if time_module.time() - access_token_created_time >= token_live_time:
@@ -800,7 +791,9 @@ class Tapper:
                     break
             except InvalidSession as error:
                 raise error
-
+            except ApiChangeDetected as error:
+                logger.error(error)
+                await asyncio.sleep(600)
             except Exception as error:
                 traceback.print_exc()
                 logger.error(f"{self.session_name} | Unknown error: {error}")

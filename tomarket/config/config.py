@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     RANDOM_DELAY_IN_RUN: list[int] = [0, 15]
 
     USE_PROXY_FROM_FILE: bool = False
+    ADVANCED_ANTI_DETECTION: bool = False
     DEBUG: bool = False
 
 

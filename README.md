@@ -138,7 +138,8 @@
 
 ## Quick Start 📚
 
-To fast install libraries and run bot - open `run.bat` on **Windows** or `run.sh` on **Linux**
+- To fast install libraries and run bot - open `run.bat` on **Windows** or `run.sh` on **Linux**
+- **[Optional]**: If you use antiban detection, run [ANTIBAN SETUP](docs/ANTIBAN.md)
 
 ## Prerequisites
 Before you begin, make sure you have the following installed:
