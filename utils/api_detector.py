@@ -4,6 +4,8 @@ import json
 import requests
 from bs4 import BeautifulSoup
 from furl import furl
+from exceptions import ApiChangeDetected
+
 
 DATA_DIR = 'api_data'
 
@@ -68,17 +70,19 @@ def load_api_data(filename):
         return json.load(f)
 
 class ApiDetector:
-    def __init__(self, app_name, app_url, target_apis=set(), ignore_js_scripts=set(), headers=None, headerjs=None):
-        api_path = os.path.join(DATA_DIR, app_name)
+    def __init__(self, app_settings):
+        self.app_name = app_settings.APP_NAME
+        
+        api_path = os.path.join(DATA_DIR, self.app_name)
         if not os.path.exists(api_path):
             os.makedirs(api_path)
-        self.api_path = api_path
-        self.app_name = app_name
-        self.app_url = app_url
-        self.target_apis = target_apis
-        self.ignore_js_scripts = ignore_js_scripts
-        self.headers = headers
-        self.headerjs = headerjs
+        
+        self.advanced_anti_detection = app_settings.ADVANCED_ANTI_DETECTION
+        self.app_url = app_settings.api_detector_config.app_url
+        self.target_apis = app_settings.api_detector_config.target_apis
+        self.ignore_js_scripts = app_settings.api_detector_config.ignore_js_scripts
+        self.headers = app_settings.api_detector_config.headers
+        self.headers_js = app_settings.api_detector_config.headers_js
         
         # Properties
         self.analyzed_api_file = os.path.join(DATA_DIR, self.app_name, 'api_data.json')
@@ -92,7 +96,7 @@ class ApiDetector:
         for js_file in js_files:
             try:
                 js_url = js_file if js_file.startswith('http') else requests.compat.urljoin(self.app_url, js_file)
-                response = requests.get(js_url, headers=self.headerjs)
+                response = requests.get(js_url, headers=self.headers_js)
                 response.raise_for_status()
                 content = response.text
                 endpoints = extract_api_endpoints(content, self.target_apis)
@@ -102,8 +106,9 @@ class ApiDetector:
                 
         return api_data
     
-    def first_time_check(self):
-        return not os.path.exists(self.analyzed_api_file)
+    def check_api_and_raise(self):
+        if self.advanced_anti_detection and not self.check_api():
+            raise ApiChangeDetected
     
     def check_api(self):
         old_js_api_calls = load_api_data(self.analyzed_api_file)

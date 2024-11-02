@@ -237,8 +237,7 @@ class Tapper:
         
         while True:
             try:
-                if settings.ADVANCED_ANTI_DETECTION and not detector.check_api():
-                    raise ApiChangeDetected
+                detector.check_api_and_raise()
                         
                 if http_client.closed:
                     if proxy_conn:
