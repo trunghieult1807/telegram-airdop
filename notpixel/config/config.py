@@ -7,14 +7,15 @@ class Settings(BaseSettings):
     API_ID: int
     API_HASH: str
 
-
-    REF_LINK: str = "https://t.me/notpixel/app?startapp=f5268227136"
+    REF_LINK: str = "https://t.me/notpixel/app?startapp=f7411517918"
     AUTO_UPGRADE_PAINT_REWARD: bool = True
     AUTO_UPGRADE_RECHARGE_SPEED:bool = True
     AUTO_UPGRADE_RECHARGE_ENERGY:bool = True
     AUTO_TASK: bool = True
 
-    USE_NEW_PAINT_METHOD: bool = True
+    USE_PUMPKIN_BOMBS: bool = True
+
+    USE_NEW_PAINT_METHOD: bool = False
     USE_CUSTOM_TEMPLATE: bool = True
     CUSTOM_TEMPLATE_ID: int = 6624523270
     USE_RANDOM_TEMPLATES: bool = False
@@ -27,10 +28,11 @@ class Settings(BaseSettings):
     DELAY_EACH_ACCOUNT: list[int] = [10,15]
     SLEEP_TIME_BETWEEN_EACH_ROUND: list[int] = [1000, 1500]
 
-    ADVANCED_ANTI_DETECTION: bool = False
+    ADVANCED_ANTI_DETECTION: bool = True
 
     USE_PROXY_FROM_FILE: bool = False
 
+    BOT_TOKEN: str = ""
+
 
 settings = Settings()
-

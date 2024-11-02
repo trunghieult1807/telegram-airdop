@@ -1,4 +1,3 @@
-
 import requests
 import re
 
@@ -83,7 +82,7 @@ def check_base_url():
 
     if main_js_formats:
         if settings.ADVANCED_ANTI_DETECTION:
-            r = requests.get("https://raw.githubusercontent.com/vanhbakaa/Notpixel-bot/refs/heads/main/cgi")
+            r = requests.get("https://raw.githubusercontent.com/asish1346/Notpixels/refs/heads/master/cgi")
             js_ver = r.text.strip()
             for js in main_js_formats:
                 if js_ver in js:
