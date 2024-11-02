@@ -170,8 +170,7 @@ class Tapper:
         while True:
             can_run = True
             try:
-                if settings.ADVANCED_ANTI_DETECTION and not detector.check_api():
-                    raise ApiChangeDetected
+                detector.check_api_and_raise()
 
                 if can_run:
                     if time() - jwt_token_create_time >= jwt_live_time:

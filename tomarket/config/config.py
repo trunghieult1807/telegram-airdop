@@ -1,9 +1,11 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from utils.api_detector_config import ApiDetectorConfig
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True, extra="allow")
 
+    APP_NAME: str = 'tomarket'
     API_ID: int
     API_HASH: str
 
@@ -27,6 +29,12 @@ class Settings(BaseSettings):
     USE_PROXY_FROM_FILE: bool = False
     ADVANCED_ANTI_DETECTION: bool = False
     DEBUG: bool = False
-
+    
+    api_detector_config: ApiDetectorConfig = ApiDetectorConfig(
+        app_url = 'https://mini-app.tomarket.ai/',
+        target_apis = {
+            'https://api-web.tomarket.ai/tomarket-game/v1',
+        },
+    )
 
 settings = Settings()

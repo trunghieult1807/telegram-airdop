@@ -1,9 +1,11 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from utils.api_detector_config import ApiDetectorConfig
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True, extra="allow")
 
+    APP_NAME: str = 'notpixel'
     API_ID: int
     API_HASH: str
 
@@ -33,6 +35,28 @@ class Settings(BaseSettings):
     USE_PROXY_FROM_FILE: bool = False
 
     BOT_TOKEN: str = ""
+    
+    api_detector_config: ApiDetectorConfig = ApiDetectorConfig(
+        app_url = 'https://app.notpx.app/',
+        target_apis = {
+            '/users/me',
+            '/mining/status',
+            '/repaint/start',
+            '/mining/boost/check/',
+            '/mining/claim',
+            '/image/template/my',
+            '/image/template/',
+            '/image/template/subscribe/',
+            '/repaint/start',
+            '/mining/task/check/',
+        },
+        ignore_js_scripts = {
+            'https://telegram.org/js/telegram-web-app.js',
+            'https://tganalytics.xyz/index.js',
+            './pixi.min.js',
+            './viewport.min.js',
+        },
+    )
 
 
 settings = Settings()

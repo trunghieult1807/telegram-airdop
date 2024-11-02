@@ -651,8 +651,7 @@ class Tapper:
         token_live_time = randint(3500, 3600)
         while True:
             try:
-                if settings.ADVANCED_ANTI_DETECTION and not detector.check_api():
-                    raise ApiChangeDetected
+                detector.check_api_and_raise()
 
                 if self.can_run:
 
