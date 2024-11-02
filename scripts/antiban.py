@@ -18,6 +18,7 @@ def init_antiban():
     for detector in detectors:
         detector.init_api_data()
         glogger.success(f"{detector.app_name} api data initialized")
+    mark_safe_apis()
 
 def mark_safe_apis():
     for detector in detectors:
