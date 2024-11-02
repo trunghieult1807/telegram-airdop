@@ -48,6 +48,10 @@ deploy:
 	&& ssh -i $(KEY_PATH) $(EC2_USER)@$(EC2_IP) 'docker stop telegram-airdop-bot || true && docker rm telegram-airdop-bot || true && docker load -i ~/images/telegram-airdop-bot.tar && cd images && docker-compose up -d'
 
 # Local run
+.PHONY: build-dev
+build-dev:
+	docker compose -f docker/compose.dev.yaml build
+
 .PHONY: start-dev
 start-dev:
 	docker compose -f docker/compose.dev.yaml up -d
