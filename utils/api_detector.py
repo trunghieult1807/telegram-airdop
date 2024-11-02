@@ -117,3 +117,24 @@ class ApiDetector:
             return False
         
         return True
+    
+    def init_api_data(self):
+        js_api_calls = self.crawl_api_usage()
+        save_api_data(js_api_calls, self.new_analyzed_api_file)
+    
+    def mark_safe(self):
+        if not os.path.exists(self.new_analyzed_api_file):
+            return True
+        
+        js_api_calls = load_api_data(self.new_analyzed_api_file)
+        valid_apis = [url for urls in js_api_calls.values() for url in urls]
+        invalid_apis = check_invalid_apis(self.target_apis, valid_apis)
+        
+        if len(invalid_apis) > 0:
+            return False
+        
+        if os.path.exists(self.analyzed_api_file):
+            os.remove(self.analyzed_api_file)
+        os.rename(self.new_analyzed_api_file, self.analyzed_api_file)
+        
+        return True

@@ -64,3 +64,5 @@ if settings.USE_TELEGRAM_NOTI:
     
 logger.add(sink=sys.stdout, format=logformat, colorize=True)
 logger = logger.opt(colors=True)
+
+glogger = logger.bind(tag="SYSTEM")
