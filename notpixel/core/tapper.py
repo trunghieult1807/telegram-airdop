@@ -76,7 +76,7 @@ class Tapper:
         }
         self.template_id = None
         self.can_run = True
-        self.cache = os.path.join(os.getcwd(), "notpixel/cache")
+        self.cache = os.path.join(os.getcwd(), "cache")
 
         self.max_lvl = {
             "energyLimit": 7,
@@ -131,6 +131,10 @@ class Tapper:
                 except FloodWait as fl:
 
                     logger.warning(f"<light-yellow>{self.session_name}</light-yellow> | FloodWait {fl}")
+                    async for dialog in self.tg_client.get_dialogs():
+                        if dialog.chat and dialog.chat.username and dialog.chat.username == "notpixel":
+                            break
+
             web_view = await self.tg_client.invoke(RequestAppWebView(
                 peer=peer,
                 app=InputBotAppShortName(bot_id=peer, short_name="app"),
@@ -716,7 +720,7 @@ class Tapper:
                                     res = session.get(f"{API_GAME_ENDPOINT}/mining/task/check/nikolai", headers=headers)
                                     if res.status_code == 200 and res.json()['nikolai']:
                                         logger.success(
-                                            f"{self.session_name} | <green>Successfully complete task <cyan>nikolai</cyan>!</green>")                                
+                                            f"{self.session_name} | <green>Successfully complete task <cyan>nikolai</cyan>!</green>")
                                 if "pumpkin" not in self.completed_task :
                                     res = session.get(f"{API_GAME_ENDPOINT}/mining/task/check/pumpkin", headers=headers)
                                     if res.status_code == 200 and res.json()['pumpkin']:
@@ -790,9 +794,7 @@ class Tapper:
                     break
             except InvalidSession as error:
                 raise error
-            except ApiChangeDetected as error:
-                logger.error(error)
-                await asyncio.sleep(600)
+
             except Exception as error:
                 traceback.print_exc()
                 logger.error(f"{self.session_name} | Unknown error: {error}")
