@@ -162,14 +162,9 @@ class MemeFiApi:
 
     async def send_taps(self, nonce: str, taps: int):
         try:
-            t = 0
             vector_array = []
             for tap in range(taps):
-                """ check if tap is greater than 4 or less than 1 and set tap to random number between 1 and 4"""
-                if tap > 4 or tap < 1:
-                    tap = randint(400000, 500000)
-                    if tap > t:
-                        t = tap
+                tap = randint(400000, 500000)
                 vector_array.append(tap)
             vector = ",".join(str(x) for x in vector_array)
             json_data = {
@@ -183,7 +178,6 @@ class MemeFiApi:
                     },
                 }
             }
-
             response_json = await self._send_request(json_data)
             if 'errors' in response_json:
                 raise InvalidProtocol(f'send_taps msg: {response_json["errors"][0]["message"]}')
