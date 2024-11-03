@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     LINEA_API: str = ''
 
     USE_RANDOM_DELAY_IN_RUN: bool = True
-    RANDOM_DELAY_IN_RUN: list[int] = [3, 15]
+    RANDOM_DELAY_IN_RUN: list[int] = [2, 5]
 
     WATCH_VIDEO: bool = False
 

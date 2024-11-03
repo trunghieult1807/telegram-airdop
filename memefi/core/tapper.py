@@ -519,6 +519,8 @@ class Tapper:
                         if status is True:
                             self.log.success(f"✅ Successful setting next boss: <m>{current_boss_level + 1}</m>")
 
+                    if not active_turbo:
+                        taps = 100
                     taps_status = await self._api.send_taps(nonce=nonce, taps=taps)
                     taps_new_balance = taps_status['coinsAmount']
                     calc_taps = taps_new_balance - balance
@@ -563,7 +565,7 @@ class Tapper:
                             if status is True:
                                 self.log.success(f"👉 Turbo boost applied")
 
-                                await asyncio.sleep(delay=3)
+                                await asyncio.sleep(delay=1)
 
                                 active_turbo = True
                                 turbo_time = time()
