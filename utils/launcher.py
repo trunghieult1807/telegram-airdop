@@ -20,17 +20,11 @@ def get_session_names() -> list[str]:
 
     return session_names
 
-async def get_tg_clients(app_name: str) -> list[Client]:
+async def get_tg_clients() -> list[Client]:
     session_names = get_session_names()
 
     if not session_names:
         raise FileNotFoundError("Not found session files")
-
-    try:
-        with open('config.json', 'r') as file:
-            json_data = json.load(file)
-    except Exception as e:
-        json_data = {}
         
     tg_clients = []
     for session_name in session_names:        
@@ -46,17 +40,11 @@ async def get_tg_clients(app_name: str) -> list[Client]:
             api_hash=api_hash,
             workdir="sessions/",
         )
-        if json_data.get(session_name) and json_data.get(session_name).get(app_name) == 0:
-            continue
-        else:
-            tg_clients.append(client)
+        tg_clients.append(client)
         
-
     return tg_clients
 
-async def create_tasks(app_name: str) -> list[asyncio.Task]:
-    tg_clients = await get_tg_clients(app_name)
-    
+async def create_tasks(app_name: str, tg_clients: list[Client]) -> list[asyncio.Task]:
     app_functions = {
         "coinsweeper": coinsweeper,
         "tomarket": tomarket,
@@ -71,7 +59,14 @@ async def create_tasks(app_name: str) -> list[asyncio.Task]:
     if not target_function:
         raise ValueError(f"Unknown app name: {app_name}")
 
+    try:
+        with open('config.json', 'r') as file:
+            json_data = json.load(file)
+    except Exception as e:
+        json_data = {}
+
     return [
         asyncio.create_task(target_function(tg_client=tg_client, proxy=None))
         for tg_client in tg_clients
+        if json_data.get(tg_client.name) is None or json_data.get(tg_client.name).get(app_name) != 0
     ]
