@@ -535,8 +535,8 @@ class Tapper:
                             f"Boss health: <e>{boss_current_health}</e>")
                         balance = new_balance
                         self.log.warning(f"❌ MemeFi server error 500")
-                        self.log.info(f"😴 Sleep 1m")
-                        await asyncio.sleep(delay=60)
+                        self.log.info(f"😴 Sleep 30s")
+                        await asyncio.sleep(delay=30)
                         is_no_balance = True
 
                     if active_turbo is False:
@@ -563,7 +563,7 @@ class Tapper:
                             if status is True:
                                 self.log.success(f"👉 Turbo boost applied")
 
-                                await asyncio.sleep(delay=9)
+                                await asyncio.sleep(delay=3)
 
                                 active_turbo = True
                                 turbo_time = time()

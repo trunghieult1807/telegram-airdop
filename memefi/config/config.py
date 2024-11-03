@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     MIN_AVAILABLE_ENERGY: int = 300
     SLEEP_BY_MIN_ENERGY: int = 314
 
-    ADD_TAPS_ON_TURBO: list[int] = [12000, 13000]
+    ADD_TAPS_ON_TURBO: list[int] = [19000, 20000]
 
     AUTO_BUY_TAPBOT: bool = True
 

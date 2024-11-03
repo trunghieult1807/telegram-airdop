@@ -164,7 +164,7 @@ class MemeFiApi:
         try:
             vector_array = []
             for tap in range(taps):
-                tap = randint(400000, 500000)
+                tap = randint(1, 10)
                 vector_array.append(tap)
             vector = ",".join(str(x) for x in vector_array)
             json_data = {
