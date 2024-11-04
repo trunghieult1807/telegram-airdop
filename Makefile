@@ -52,6 +52,10 @@ deploy:
 build-dev:
 	docker compose -f docker/compose.dev.yaml build
 
+.PHONY: run-dev
+run-dev:
+	docker compose -f docker/compose.dev.yaml exec $(DEVCONTAINER) python3 main.py
+
 .PHONY: start-dev
 start-dev:
 	docker compose -f docker/compose.dev.yaml up -d
