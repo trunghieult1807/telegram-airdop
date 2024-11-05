@@ -109,13 +109,22 @@ class ApiDetector:
     def check_api_and_raise(self):
         if self.advanced_anti_detection and not self.check_api():
             raise ApiChangeDetected
+        
+    def safe_js_files(self):
+        if not os.path.exists(self.analyzed_api_file):
+            return False
+        
+        old_js_files = set(load_api_data(self.analyzed_api_file))
+        html = fetch_page_html(self.app_url, self.headers)
+        new_js_files = set(extract_js_files(html, self.ignore_js_scripts))
+        return old_js_files == new_js_files
     
     def check_api(self):
         old_js_api_calls = load_api_data(self.analyzed_api_file)
         valid_apis = [url for urls in old_js_api_calls.values() for url in urls]
         invalid_apis = check_invalid_apis(self.target_apis, valid_apis)
         
-        if len(invalid_apis) > 0:
+        if len(invalid_apis) > 0 or not self.safe_js_files():
             js_api_calls = self.crawl_api_usage()
             save_api_data(invalid_apis, self.invalid_apis_file)
             save_api_data(js_api_calls, self.new_analyzed_api_file)
