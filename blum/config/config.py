@@ -1,14 +1,18 @@
+from pydantic import ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+ENV_FILE_PATH = ".env"
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True, extra="allow")
+    model_config = SettingsConfigDict(env_file=ENV_FILE_PATH, env_ignore_empty=True, extra="allow")
 
     API_ID: int
     API_HASH: str
 
     PLAY_GAMES: bool = True
     POINTS: list[int] = [190, 230]
+    USE_CUSTOM_PAYLOAD_SERVER: bool = False
+    CUSTOM_PAYLOAD_SERVER_URL: str = "https://server2.ggtog.live/api/game"
 
     AUTO_TASKS: bool = True
 
@@ -22,7 +26,13 @@ class Settings(BaseSettings):
 
     USE_PROXY_FROM_FILE: bool = False
 
+    DEBUG: bool = False
+    SLEEP_MINUTES_BEFORE_ITERATIONS: list[int] = [120, 600]
 
-settings = Settings()
-
-
+try:
+    settings = Settings()
+except ValidationError as error:
+    print("ERRORS from .env file!")
+    for e in error.errors():
+        print(f"[{e['type']} error] Field: \"{' '.join(e['loc'])}\". Message: {e['msg']}")
+    exit(1)
