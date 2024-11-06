@@ -10,23 +10,28 @@ from pyrogram import Client
 from pyrogram.errors import Unauthorized, UserDeactivated, AuthKeyUnregistered, FloodWait
 from pyrogram.raw import functions
 from pyrogram.raw.functions.messages import RequestWebView
-from okxracer.core.agents import generate_random_user_agent
 from okxracer.config import settings
-
 from okxracer.utils import logger
-from okxracer.exceptions import InvalidSession
+from exceptions import InvalidSession
 from .headers import headers
 
 from random import randint, choices
 
 
 class Tapper:
-    def __init__(self, tg_client: Client):
+    def __init__(self, tg_client: Client, proxy: str | None):
         self.tg_client = tg_client
         self.session_name = tg_client.name
         self.first_name = ''
         self.last_name = ''
         self.user_id = ''
+        self.proxy = proxy
+        self.access_token_created_time = 0
+        self.token_live_time = randint(3500, 3600)
+        
+    def create_http_client(self):
+        proxy_conn = ProxyConnector().from_url(self.proxy) if self.proxy else None
+        return CloudflareScraper(headers=headers, connector=proxy_conn)
 
     async def get_tg_web_data(self, proxy: str | None) -> str:
         if proxy:
@@ -269,85 +274,84 @@ class Tapper:
             logger.error(f"{self.session_name} | Unknown error when making assess: {error}")
             await asyncio.sleep(delay=3)
 
-    async def run(self, proxy: str | None) -> None:
-        access_token_created_time = 0
-        proxy_conn = ProxyConnector().from_url(proxy) if proxy else None
+    async def run_one_time(self, http_client: aiohttp.ClientSession = None):
+        self.http_client = self.create_http_client() if http_client is None else http_client
+        
+        if time() - self.access_token_created_time >= self.token_live_time:
+            tg_web_data = await self.get_tg_web_data(proxy=self.proxy)
+            self.http_client.headers["X-Telegram-Init-Data"] = tg_web_data
+            user_info = await self.get_info_data(http_client=self.http_client)
+            self.access_token_created_time = time()
+            self.token_live_time = randint(3500, 3600)
 
-        headers["User-Agent"] = generate_random_user_agent(device_type='android', browser_type='chrome')
-        http_client = CloudflareScraper(headers=headers, connector=proxy_conn)
+            balance = user_info['data']['balancePoints']
+            logger.info(f"{self.session_name} | Balance: <e>{balance}</e>")
+            await self.processing_tasks(http_client=self.http_client)
+            await asyncio.sleep(delay=randint(10, 15))
 
-        if proxy:
-            await self.check_proxy(http_client=http_client, proxy=proxy)
+        user_info = await self.get_info_data(http_client=self.http_client)
+        chances = user_info['data']['numChances']
+        refresh_time = user_info['data']['secondToRefresh']
+        balance = user_info['data']['balancePoints']
 
-        token_live_time = randint(3500, 3600)
+        if settings.AUTO_BOOST:
+            boosts = await self.get_boosts(http_client=self.http_client)
+            for boost in boosts:
+                boost_name = boost['context']['name']
+                boost_id = boost['id']
+                if (boost_id == 2 or boost_id == 3) and settings.BOOSTERS[boost_name]:
+                    if self.can_buy_boost(balance, boost):
+                        result = await self.buy_boost(http_client=self.http_client, boost_id=boost_id, boost_name=boost_name)
+                        if result:
+                            logger.info(f"{self.session_name} | <lc>{boost_name}</lc> upgraded to "
+                                        f"<m>{boost['curStage'] + 1}</m> lvl")
+
+        if chances == 0 and refresh_time > 0:
+            logger.info(f"{self.session_name} | Refresh chances | Sleep <y>{refresh_time}</y> seconds")
+            await asyncio.sleep(delay=refresh_time)
+            chances += 1
+
+        sleep_time = randint(settings.SLEEP_TIME[0], settings.SLEEP_TIME[1])
+        for _ in range(chances):
+            response_data = await self.make_assess(http_client=self.http_client)
+            if response_data is None:
+                self.token_live_time = 0
+                await asyncio.sleep(delay=sleep_time)
+                break
+            else:
+                combo_count = response_data.get('curCombo')
+                if combo_count and combo_count >= settings.MAX_COMBO_COUNT:
+                    logger.info(f"{self.session_name} | Combo count limit reached | Abort predictions..")
+                    break
+                if response_data.get('numChance') == 0 and settings.AUTO_BOOST:
+                    boost = next((boost for boost in boosts if boost['id'] == 1), None)
+                    if self.can_buy_boost(balance, boost):
+                        if await self.buy_boost(http_client=self.http_client, boost_id=boost['id'],
+                                                boost_name=boost['context']['name']):
+                            await asyncio.sleep(randint(1, 3))
+                            boosts = await self.get_boosts(http_client=self.http_client)
+                            sleep_time = randint(1, 3)
+                            continue
+                    else:
+                        break
+            await asyncio.sleep(delay=randint(1, 3))
+            
+        logger.info(f"{self.session_name} | Sleep <y>{sleep_time}</y> seconds")
+        await asyncio.sleep(delay=sleep_time)
+        
+        if http_client is None:
+            await self.http_client.close()
+
+    async def run(self) -> None:
+        http_client = self.create_http_client()
+        if self.proxy:
+            await self.check_proxy(http_client=http_client, proxy=self.proxy)
+
         while True:
             try:
-                if time() - access_token_created_time >= token_live_time:
-                    tg_web_data = await self.get_tg_web_data(proxy=proxy)
-                    http_client.headers["X-Telegram-Init-Data"] = tg_web_data
-                    user_info = await self.get_info_data(http_client=http_client)
-                    access_token_created_time = time()
-                    token_live_time = randint(3500, 3600)
-
-                    balance = user_info['data']['balancePoints']
-                    logger.info(f"{self.session_name} | Balance: <e>{balance}</e>")
-                    await self.processing_tasks(http_client=http_client)
-                    await asyncio.sleep(delay=randint(10, 15))
-
-                user_info = await self.get_info_data(http_client=http_client)
-                chances = user_info['data']['numChances']
-                refresh_time = user_info['data']['secondToRefresh']
-                balance = user_info['data']['balancePoints']
-
-                if settings.AUTO_BOOST:
-                    boosts = await self.get_boosts(http_client=http_client)
-                    for boost in boosts:
-                        boost_name = boost['context']['name']
-                        boost_id = boost['id']
-                        if (boost_id == 2 or boost_id == 3) and settings.BOOSTERS[boost_name]:
-                            if self.can_buy_boost(balance, boost):
-                                result = await self.buy_boost(http_client=http_client, boost_id=boost_id,
-                                                              boost_name=boost_name)
-                                if result:
-                                    logger.info(f"{self.session_name} | <lc>{boost_name}</lc> upgraded to "
-                                                f"<m>{boost['curStage'] + 1}</m> lvl")
-
-                if chances == 0 and refresh_time > 0:
-                    logger.info(f"{self.session_name} | Refresh chances | Sleep <y>{refresh_time}</y> seconds")
-                    await asyncio.sleep(delay=refresh_time)
-                    chances += 1
-
-                sleep_time = randint(settings.SLEEP_TIME[0], settings.SLEEP_TIME[1])
-                for _ in range(chances):
-                    response_data = await self.make_assess(http_client=http_client)
-                    if response_data is None:
-                        token_live_time = 0
-                        await asyncio.sleep(delay=sleep_time)
-                        break
-                    else:
-                        combo_count = response_data.get('curCombo')
-                        if combo_count and combo_count >= settings.MAX_COMBO_COUNT:
-                            logger.info(f"{self.session_name} | Combo count limit reached | Abort predictions..")
-                            break
-                        if response_data.get('numChance') == 0 and settings.AUTO_BOOST:
-                            boost = next((boost for boost in boosts if boost['id'] == 1), None)
-                            if self.can_buy_boost(balance, boost):
-                                if await self.buy_boost(http_client=http_client, boost_id=boost['id'],
-                                                        boost_name=boost['context']['name']):
-                                    await asyncio.sleep(randint(1, 3))
-                                    boosts = await self.get_boosts(http_client=http_client)
-                                    sleep_time = randint(1, 3)
-                                    continue
-                            else:
-                                break
-
-                    await asyncio.sleep(delay=randint(1, 3))
-
-                logger.info(f"{self.session_name} | Sleep <y>{sleep_time}</y> seconds")
-                await asyncio.sleep(delay=sleep_time)
+                await self.run_one_time(http_client=http_client)
             except InvalidSession as error:
                 raise error
-
             except Exception as error:
                 logger.error(f"{self.session_name} | Unknown error: {error}")
                 await asyncio.sleep(delay=randint(60, 120))
@@ -355,6 +359,6 @@ class Tapper:
 
 async def run_tapper(tg_client: Client, proxy: str | None):
     try:
-        await Tapper(tg_client=tg_client).run(proxy=proxy)
+        await Tapper(tg_client=tg_client, proxy=proxy).run()
     except InvalidSession:
         logger.error(f"{tg_client.name} | Invalid Session")

@@ -14,3 +14,17 @@ headers = {
     'Sec-Ch-Ua-platform': '"Android"',
     'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.6422.165 Mobile Safari/537.36',
 }
+
+login_headers = {
+    'Accept': '*/*',
+    'Accept-Language': 'en,en-US;q=0.9,vi;q=0.8',
+    "Accept-Encoding": "gzip, deflate, br",
+    "Access-Control-Request-Headers": "content-type,tl-init-data",
+    "Access-Control-Request-Method": "POST",
+    'Origin': 'https://bybitcoinsweeper.com',
+    'Referer': 'https://bybitcoinsweeper.com/',
+    'Sec-Fetch-Dest': 'empty',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'same-site',
+    'User-Agent': headers["User-Agent"],
+}

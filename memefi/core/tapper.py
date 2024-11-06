@@ -33,7 +33,7 @@ from utils.time_list import TimedList
 
 
 class Tapper:
-    def __init__(self, tg_client: Client, logger: SessionLogger):
+    def __init__(self, tg_client: Client, logger: SessionLogger, proxy: str | None):
         self.tg_client = tg_client
         self.video_codes = VideoCodes()
         self.log = logger
@@ -42,6 +42,16 @@ class Tapper:
 
         self.session_ug_dict = self.load_user_agents() or []
         headers['User-Agent'] = self.check_user_agent()
+        self.access_token_created_time = 0
+        self.turbo_time = 0
+        self.active_turbo = False
+        self.proxy = proxy
+    
+    def create_http_client(self):
+        ssl_context = TLSv1_3_BYPASS.create_ssl_context()
+        conn = ProxyConnector().from_url(url=self.proxy, rdns=True, ssl=ssl_context) if self.proxy \
+            else aiohttp.TCPConnector(ssl=ssl_context)
+        return CloudflareScraper(headers=headers, connector=conn)        
 
     def save_user_agent(self):
 
@@ -180,8 +190,6 @@ class Tapper:
             self.log.error(f"❗️ Unknown error during Authorization: {error}")
             await asyncio.sleep(delay=5)
 
-
-
     async def get_linea_wallet_balance(self, http_client: aiohttp.ClientSession, linea_wallet: str):
         try:
             api_key = settings.LINEA_API
@@ -274,7 +282,6 @@ class Tapper:
                     else f"<r>Error from complete_task method.</r>"
                 self.log.info(f"Video: <r>{task['name']}</r> | Status: {message}")
 
-
     async def update_authorization(self, http_client, proxy) -> bool:
         http_client.headers.pop("Authorization", None)
 
@@ -294,355 +301,314 @@ class Tapper:
         await self._api.get_telegram_me()
         return True
 
-    async def run(self, proxy: str | None):
-        access_token_created_time = 0
-        turbo_time = 0
-        active_turbo = False
+    async def run_one_time(self, http_client: aiohttp.ClientSession = None):
+        self.http_client = self.create_http_client() if http_client is None else http_client
+        self._api.set_http_client(http_client=self.http_client)
+        
+        is_no_balance = False
+        if time() - self.access_token_created_time >= 5400:
+            is_success = await self.update_authorization(http_client=self.http_client, proxy=self.proxy)
+            if not is_success:
+                await asyncio.sleep(delay=5)
+                return
+            self.access_token_created_time = time()
 
-        ssl_context = TLSv1_3_BYPASS.create_ssl_context()
-        conn = ProxyConnector().from_url(url=proxy, rdns=True, ssl=ssl_context) if proxy \
-            else aiohttp.TCPConnector(ssl=ssl_context)
+        profile_data = await self._api.get_profile_data()
+        if not profile_data:
+            await asyncio.sleep(delay=5)
+            return
 
-        async with CloudflareScraper(headers=headers, connector=conn) as http_client:
-            if proxy:
-                try:
-                    ip = await check_proxy(http_client=http_client, proxy=proxy)
-                    self.log.info(f"Proxy IP: {ip}")
-                except Exception as error:
-                    self.log.error(f"Proxy: {proxy} | Error: {error}")
+        balance = profile_data.get('coinsAmount', 0)
+        nonce = profile_data.get('nonce', '')
+        current_boss = profile_data['currentBoss']
+        current_boss_level = current_boss['level']
+        boss_max_health = current_boss['maxHealth']
+        boss_current_health = current_boss['currentHealth']
+        spins = profile_data.get('spinEnergyTotal', 0)
+        self.log.info(f"Current boss level: <m>{current_boss_level}</m> | "
+                      f"Boss health: <e>{boss_current_health}</e> out of <r>{boss_max_health}</r> | "
+                      f"Balance: <c>{balance}</c> | Spins: <le>{spins}</le>")
 
-            self._api.set_http_client(http_client=http_client)
+        if settings.USE_RANDOM_DELAY_IN_RUN:
+            random_delay = random.randint(settings.RANDOM_DELAY_IN_RUN[0],
+                                          settings.RANDOM_DELAY_IN_RUN[1])
+            self.log.info(f"Bot will start in <y>{random_delay}s</y>")
+            await asyncio.sleep(random_delay)
+        
+        if settings.LINEA_WALLET is True:
+            linea_wallet = await self._api.wallet_check()
+            self.log.info(f"💳 Linea wallet address: <y>{linea_wallet}</y>")
+            if settings.LINEA_SHOW_BALANCE:
+                if settings.LINEA_API != '':
+                    balance_eth = await self.get_linea_wallet_balance(http_client=self.http_client, linea_wallet=linea_wallet)
+                    eth_price = await self.get_eth_price(http_client=self.http_client, balance_eth=balance_eth)
+                    self.log.info(f"ETH Balance: <g>{balance_eth}</g> | USD Balance: <e>{eth_price}</e>")
+                elif settings.LINEA_API == '':
+                    self.log.info(f"💵 LINEA_API must be specified to show the balance")
+                    await asyncio.sleep(delay=3)
+        
+        if boss_current_health == 0:
+            self.log.info(f"👉 Setting next boss: <m>{current_boss_level + 1}</m> lvl")
+            self.log.info(f"😴 Sleep 10s")
+            await asyncio.sleep(delay=10)
 
-            while True:
-                is_no_balance = False
-                try:
-                    if time() - access_token_created_time >= 5400:
-                        is_success = await self.update_authorization(http_client=http_client, proxy=proxy)
-                        if not is_success:
-                            await asyncio.sleep(delay=5)
-                            continue
-                        access_token_created_time = time()
+            status = await self._api.set_next_boss()
+            if status is True:
+                self.log.success(f"✅ Successful setting next boss: <m>{current_boss_level + 1}</m>")
+        
+        if settings.WATCH_VIDEO:
+            await self.watch_videos()
+        
+        if settings.ROLL_CASINO:
+            while spins > settings.VALUE_SPIN:
+                await asyncio.sleep(delay=2)
+                play_data = await self._api.play_slotmachine(spin_value=settings.VALUE_SPIN)
+                reward_amount = play_data.get('spinResults', [{}])[0].get('rewardAmount', 0)
+                reward_type = play_data.get('spinResults', [{}])[0].get('rewardType', 'NO')
+                spins = play_data.get('gameConfig', {}).get('spinEnergyTotal', 0)
+                balance = play_data.get('gameConfig', {}).get('coinsAmount', 0)
+                if play_data.get('ethLotteryConfig', {}) is None:
+                    eth_lottery_status = '-'
+                    eth_lottery_ticket = '-'
+                else:
+                    eth_lottery_status = play_data.get('ethLotteryConfig', {}).get('isCompleted', 0)
+                    eth_lottery_ticket = play_data.get('ethLotteryConfig', {}).get('ticketNumber', 0)
+                self.log.info(f"🎰 Casino game | "
+                              f"Balance: <lc>{balance:,}</lc> (<lg>+{reward_amount:,}</lg> "
+                              f"<lm>{reward_type}</lm>) "
+                              f"| Spins: <le>{spins:,}</le> ")
+                if settings.LOTTERY_INFO:
+                    self.log.info(f"🎟 ETH Lottery status: {eth_lottery_status} |"
+                                  f" 🎫 Ticket number: <yellow>{eth_lottery_ticket}</yellow>")
+                await asyncio.sleep(delay=5)
 
-                    profile_data = await self._api.get_profile_data()
-
-                    if not profile_data:
-                        await asyncio.sleep(delay=5)
-                        continue
-
-                    balance = profile_data.get('coinsAmount', 0)
-                    nonce = profile_data.get('nonce', '')
-                    current_boss = profile_data['currentBoss']
-                    current_boss_level = current_boss['level']
-                    boss_max_health = current_boss['maxHealth']
-                    boss_current_health = current_boss['currentHealth']
-                    spins = profile_data.get('spinEnergyTotal', 0)
-
-                    self.log.info(f"Current boss level: <m>{current_boss_level}</m> | "
-                                f"Boss health: <e>{boss_current_health}</e> out of <r>{boss_max_health}</r> | "
-                                f"Balance: <c>{balance}</c> | Spins: <le>{spins}</le>")
-
-                    if settings.USE_RANDOM_DELAY_IN_RUN:
-                        random_delay = random.randint(settings.RANDOM_DELAY_IN_RUN[0],
-                                                      settings.RANDOM_DELAY_IN_RUN[1])
-                        self.log.info(f"Bot will start in <y>{random_delay}s</y>")
-                        await asyncio.sleep(random_delay)
-
-                    if settings.LINEA_WALLET is True:
-                        linea_wallet = await self._api.wallet_check()
-                        self.log.info(f"💳 Linea wallet address: <y>{linea_wallet}</y>")
-                        if settings.LINEA_SHOW_BALANCE:
-                            if settings.LINEA_API != '':
-                                balance_eth = await self.get_linea_wallet_balance(http_client=http_client,
-                                                                                  linea_wallet=linea_wallet)
-                                eth_price = await self.get_eth_price(http_client=http_client,
-                                                                     balance_eth=balance_eth)
-                                self.log.info(f"ETH Balance: <g>{balance_eth}</g> | "
-                                            f"USD Balance: <e>{eth_price}</e>")
-                            elif settings.LINEA_API == '':
-                                self.log.info(f""
-                                            f"💵 LINEA_API must be specified to show the balance")
-                                await asyncio.sleep(delay=3)
-
-                    if boss_current_health == 0:
-                        self.log.info(f"👉 Setting next boss: <m>{current_boss_level + 1}</m> lvl")
-                        self.log.info(f"😴 Sleep 10s")
-                        await asyncio.sleep(delay=10)
-
-                        status = await self._api.set_next_boss()
-                        if status is True:
-                            self.log.success(f"✅ Successful setting next boss: <m>{current_boss_level + 1}</m>")
-
-                    if settings.WATCH_VIDEO:
-                       await self.watch_videos()
-
-                    if settings.ROLL_CASINO:
-                        while spins > settings.VALUE_SPIN:
-                            await asyncio.sleep(delay=2)
-                            play_data = await self._api.play_slotmachine(spin_value=settings.VALUE_SPIN)
-                            reward_amount = play_data.get('spinResults', [{}])[0].get('rewardAmount', 0)
-                            reward_type = play_data.get('spinResults', [{}])[0].get('rewardType', 'NO')
-                            spins = play_data.get('gameConfig', {}).get('spinEnergyTotal', 0)
-                            balance = play_data.get('gameConfig', {}).get('coinsAmount', 0)
-                            if play_data.get('ethLotteryConfig', {}) is None:
-                                eth_lottery_status = '-'
-                                eth_lottery_ticket = '-'
-                            else:
-                                eth_lottery_status = play_data.get('ethLotteryConfig', {}).get('isCompleted', 0)
-                                eth_lottery_ticket = play_data.get('ethLotteryConfig', {}).get('ticketNumber', 0)
-                            self.log.info(f"🎰 Casino game | "
-                                        f"Balance: <lc>{balance:,}</lc> (<lg>+{reward_amount:,}</lg> "
-                                        f"<lm>{reward_type}</lm>) "
-                                        f"| Spins: <le>{spins:,}</le> ")
-                            if settings.LOTTERY_INFO:
-                                self.log.info(f"🎟 ETH Lottery status: {eth_lottery_status} |"
-                                            f" 🎫 Ticket number: <yellow>{eth_lottery_ticket}</yellow>")
-                            await asyncio.sleep(delay=5)
-
-                    taps = randint(a=settings.RANDOM_TAPS_COUNT[0], b=settings.RANDOM_TAPS_COUNT[1])
-                    if taps > boss_current_health:
-                        taps = boss_max_health - boss_current_health - 10
-                        # return taps
-                    bot_config = await self._api.get_bot_config()
-                    telegram_me = await self._api.get_telegram_me()
-
-                    available_energy = profile_data['currentEnergy']
-                    need_energy = taps * profile_data['weaponLevel']
-
-                    if first_check_clan():
-                        clan = await self._api.get_clan()
-                        set_first_run_check_clan()
+        taps = randint(settings.RANDOM_TAPS_COUNT[0], settings.RANDOM_TAPS_COUNT[1])
+        if taps > boss_current_health:
+            taps = boss_max_health - boss_current_health - 10
+            
+        bot_config = await self._api.get_bot_config()
+        telegram_me = await self._api.get_telegram_me()
+        available_energy = profile_data['currentEnergy']
+        need_energy = taps * profile_data['weaponLevel']
+        
+        if first_check_clan():
+            clan = await self._api.get_clan()
+            set_first_run_check_clan()
+            await asyncio.sleep(1)
+            if clan is not False and clan != '71886d3b-1186-452d-8ac6-dcc5081ab204':
+                await asyncio.sleep(1)
+                clan_leave = await self._api.leave_clan()
+                if clan_leave is True:
+                    await asyncio.sleep(1)
+                    clan_join = await self._api.join_clan()
+                    if clan_join is True:
+                        return
+                    elif clan_join is False:
                         await asyncio.sleep(1)
-                        if clan is not False and clan != '71886d3b-1186-452d-8ac6-dcc5081ab204':
-                            await asyncio.sleep(1)
-                            clan_leave = await self._api.leave_clan()
-                            if clan_leave is True:
-                                await asyncio.sleep(1)
-                                clan_join = await self._api.join_clan()
-                                if clan_join is True:
-                                    continue
-                                elif clan_join is False:
-                                    await asyncio.sleep(1)
-                                    continue
-                            elif clan_leave is False:
-                                continue
-                        elif clan == '71886d3b-1186-452d-8ac6-dcc5081ab204':
-                            continue
-                        else:
-                            clan_join = await self._api.join_clan()
-                            if clan_join is True:
-                                continue
-                            elif clan_join is False:
-                                await asyncio.sleep(1)
-                                continue
+                        return
+                elif clan_leave is False:
+                    return
+            elif clan == '71886d3b-1186-452d-8ac6-dcc5081ab204':
+                return
+            else:
+                clan_join = await self._api.join_clan()
+                if clan_join is True:
+                    return
+                elif clan_join is False:
+                    await asyncio.sleep(1)
+                    return
+        
+        if telegram_me['isReferralInitialJoinBonusAvailable'] is True:
+            await self._api.claim_referral_bonus()
+            self.log.info(f"🔥Referral bonus was claimed")
+        
+        if bot_config['isPurchased'] is False and settings.AUTO_BUY_TAPBOT is True:
+            await self._api.upgrade_boost(boost_type=UpgradableBoostType.TAPBOT)
+            self.log.info(f"👉 Tapbot was purchased - 😴 Sleep 7s")
+            await asyncio.sleep(delay=9)
+            bot_config = await self._api.get_bot_config()
+        
+        if bot_config['isPurchased'] is True:
+            if bot_config['usedAttempts'] < bot_config['totalAttempts'] and not bot_config['endsAt']:
+                await self._api.start_bot()
+                bot_config = await self._api.get_bot_config()
+                self.log.info(f"👉 Tapbot is started")
+            else:
+                claim_result = await self._api.claim_bot()
+                if claim_result['isClaimed'] == False and claim_result['data']:
+                    self.log.info(f"👉 Tapbot was claimed - 😴 Sleep 7s before starting again")
+                    await asyncio.sleep(delay=9)
+                    bot_config = claim_result['data']
+                    await asyncio.sleep(delay=5)
 
-                    if telegram_me['isReferralInitialJoinBonusAvailable'] is True:
-                        await self._api.claim_referral_bonus()
-                        self.log.info(f"🔥Referral bonus was claimed")
-
-                    if bot_config['isPurchased'] is False and settings.AUTO_BUY_TAPBOT is True:
-                        await self._api.upgrade_boost(boost_type=UpgradableBoostType.TAPBOT)
-                        self.log.info(f"👉 Tapbot was purchased - 😴 Sleep 7s")
+                    if bot_config['usedAttempts'] < bot_config['totalAttempts']:
+                        await self._api.start_bot()
+                        self.log.info(f"👉 Tapbot is started - 😴 Sleep 7s")
                         await asyncio.sleep(delay=9)
                         bot_config = await self._api.get_bot_config()
+        
+        if self.active_turbo:
+            taps += randint(settings.ADD_TAPS_ON_TURBO[0], settings.ADD_TAPS_ON_TURBO[1])
+            if taps > boss_current_health:
+                taps = boss_max_health - boss_current_health - 10
 
-                    if bot_config['isPurchased'] is True:
-                        if bot_config['usedAttempts'] < bot_config['totalAttempts'] and not bot_config['endsAt']:
-                            await self._api.start_bot()
-                            bot_config = await self._api.get_bot_config()
-                            self.log.info(f"👉 Tapbot is started")
+            need_energy = 0
+            if time() - self.turbo_time > 10:
+                self.active_turbo = False
+                self.turbo_time = 0
+        
+        if need_energy > available_energy or available_energy - need_energy < settings.MIN_AVAILABLE_ENERGY:
+            self.log.warning(f"Need more energy ({available_energy}/{need_energy}, min:"
+                             f" {settings.MIN_AVAILABLE_ENERGY}) for {taps} taps")
+            sleep_between_clicks = randint(settings.SLEEP_BETWEEN_TAP[0], settings.SLEEP_BETWEEN_TAP[1])
+            self.log.info(f"Sleep {sleep_between_clicks}s")
+            await asyncio.sleep(delay=sleep_between_clicks)
+            profile_data = await self._api.get_profile_data()
+            return
 
-                        else:
-                            claim_result = await self._api.claim_bot()
-                            if claim_result['isClaimed'] == False and claim_result['data']:
-                                self.log.info(f"👉 Tapbot was claimed - 😴 Sleep 7s before starting again")
-                                await asyncio.sleep(delay=9)
-                                bot_config = claim_result['data']
-                                await asyncio.sleep(delay=5)
+        profile_data = await self._api.send_taps(nonce=nonce, taps=taps)
+        if not profile_data:
+            return
 
-                                if bot_config['usedAttempts'] < bot_config['totalAttempts']:
-                                    await self._api.start_bot()
-                                    self.log.info(f"👉 Tapbot is started - 😴 Sleep 7s")
-                                    await asyncio.sleep(delay=9)
-                                    bot_config = await self._api.get_bot_config()
+        available_energy = profile_data['currentEnergy']
+        new_balance = profile_data['coinsAmount']
 
-                    if active_turbo:
-                        taps += randint(a=settings.ADD_TAPS_ON_TURBO[0], b=settings.ADD_TAPS_ON_TURBO[1])
-                        if taps > boss_current_health:
-                            taps = boss_max_health - boss_current_health - 10
-                            # return taps
+        free_boosts = profile_data['freeBoosts']
+        turbo_boost_count = free_boosts['currentTurboAmount']
+        energy_boost_count = free_boosts['currentRefillEnergyAmount']
 
-                        need_energy = 0
+        next_tap_level = profile_data['weaponLevel'] + 1
+        next_energy_level = profile_data['energyLimitLevel'] + 1
+        next_charge_level = profile_data['energyRechargeLevel'] + 1
 
-                        if time() - turbo_time > 10:
-                            active_turbo = False
-                            turbo_time = 0
+        nonce = profile_data['nonce']
 
-                    if need_energy > available_energy or available_energy - need_energy < settings.MIN_AVAILABLE_ENERGY:
-                        self.log.warning(f"Need more energy ({available_energy}/{need_energy}, min:"
-                                       f" {settings.MIN_AVAILABLE_ENERGY}) for {taps} taps")
+        current_boss = profile_data['currentBoss']
+        current_boss_level = current_boss['level']
+        boss_current_health = current_boss['currentHealth']
+        
+        if boss_current_health <= 0:
+            self.log.info(f"👉 Setting next boss: <m>{current_boss_level + 1}</m> lvl")
+            self.log.info(f"😴 Sleep 10s")
+            await asyncio.sleep(delay=10)
+            status = await self._api.set_next_boss()
+            if status is True:
+                self.log.success(f"✅ Successful setting next boss: <m>{current_boss_level + 1}</m>")
+        
+        if not self.active_turbo:
+            taps = 100
+        taps_status = await self._api.send_taps(nonce=nonce, taps=taps)
+        taps_new_balance = taps_status['coinsAmount']
+        calc_taps = taps_new_balance - balance
+        if calc_taps > 0:
+            self.log.success(f"✅ Successful tapped! 🔨 | 👉 Current energy: {available_energy} "
+                             f"| ⚡️ Minimum energy limit: {settings.MIN_AVAILABLE_ENERGY} | "
+                             f"Balance: <c>{taps_new_balance}</c> (<g>+{calc_taps} 😊</g>) | "
+                             f"Boss health: <e>{boss_current_health}</e>")
+            balance = new_balance
+        else:
+            self.log.info(f"❌ Failed tapped! 🔨 | Balance: <c>{taps_new_balance}</c> "
+                          f"(<g>No coin added 😥</g>) | 👉 Current energy: {available_energy} | "
+                          f"⚡️ Minimum energy limit: {settings.MIN_AVAILABLE_ENERGY} | "
+                          f"Boss health: <e>{boss_current_health}</e>")
+            balance = new_balance
+            self.log.warning(f"❌ MemeFi server error 500")
+            self.log.info(f"😴 Sleep 30s")
+            await asyncio.sleep(delay=30)
+            is_no_balance = True
+        
+        if self.active_turbo is False:
+            if (energy_boost_count > 0
+                and available_energy < settings.MIN_AVAILABLE_ENERGY
+                and settings.APPLY_DAILY_ENERGY is True
+                and available_energy - need_energy < settings.MIN_AVAILABLE_ENERGY):
+                self.log.info(f"😴 Sleep 7s before activating the daily energy boost")
+                await asyncio.sleep(delay=7)
+                status = await self._api.apply_boost(boost_type=FreeBoostType.ENERGY)
+                if status is True:
+                    self.log.success(f"👉 Energy boost applied")
+                    await asyncio.sleep(delay=3)
+                return
 
-                        sleep_between_clicks = randint(a=settings.SLEEP_BETWEEN_TAP[0], b=settings.SLEEP_BETWEEN_TAP[1])
-                        self.log.info(f"Sleep {sleep_between_clicks}s")
-                        await asyncio.sleep(delay=sleep_between_clicks)
-                        # update profile data
-                        profile_data = await self._api.get_profile_data()
-                        continue
+            if turbo_boost_count > 0 and settings.APPLY_DAILY_TURBO is True:
+                self.log.info(f"😴 Sleep 10s before activating the daily turbo boost")
+                await asyncio.sleep(delay=10)
+                status = await self._api.apply_boost(boost_type=FreeBoostType.TURBO)
+                if status is True:
+                    self.log.success(f"👉 Turbo boost applied")
+                    await asyncio.sleep(delay=1)
+                    self.active_turbo = True
+                    self.turbo_time = time()
+                return
+            
+            if settings.AUTO_UPGRADE_TAP is True and next_tap_level <= settings.MAX_TAP_LEVEL:
+                need_balance = 1000 * (2 ** (next_tap_level - 1))
+                if balance > need_balance:
+                    status = await self._api.upgrade_boost(boost_type=UpgradableBoostType.TAP)
+                    if status is True:
+                        self.log.success(f"Tap upgraded to {next_tap_level} lvl")
 
-                    profile_data = await self._api.send_taps(nonce=nonce, taps=taps)
-
-                    if not profile_data:
-                        continue
-
-                    available_energy = profile_data['currentEnergy']
-                    new_balance = profile_data['coinsAmount']
-
-                    free_boosts = profile_data['freeBoosts']
-                    turbo_boost_count = free_boosts['currentTurboAmount']
-                    energy_boost_count = free_boosts['currentRefillEnergyAmount']
-
-                    next_tap_level = profile_data['weaponLevel'] + 1
-                    next_energy_level = profile_data['energyLimitLevel'] + 1
-                    next_charge_level = profile_data['energyRechargeLevel'] + 1
-
-                    nonce = profile_data['nonce']
-
-                    current_boss = profile_data['currentBoss']
-                    current_boss_level = current_boss['level']
-                    boss_current_health = current_boss['currentHealth']
-
-                    if boss_current_health <= 0:
-                        self.log.info(f"👉 Setting next boss: <m>{current_boss_level + 1}</m> lvl")
-                        self.log.info(f"😴 Sleep 10s")
-                        await asyncio.sleep(delay=10)
-
-                        status = await self._api.set_next_boss()
-                        if status is True:
-                            self.log.success(f"✅ Successful setting next boss: <m>{current_boss_level + 1}</m>")
-
-                    if not active_turbo:
-                        taps = 100
-                    taps_status = await self._api.send_taps(nonce=nonce, taps=taps)
-                    taps_new_balance = taps_status['coinsAmount']
-                    calc_taps = taps_new_balance - balance
-                    if calc_taps > 0:
-                        self.log.success(f"✅ Successful tapped! 🔨 | 👉 Current energy: {available_energy} "
-                            f"| ⚡️ Minimum energy limit: {settings.MIN_AVAILABLE_ENERGY} | "
-                            f"Balance: <c>{taps_new_balance}</c> (<g>+{calc_taps} 😊</g>) | "
-                            f"Boss health: <e>{boss_current_health}</e>")
-                        balance = new_balance
-                    else:
-                        self.log.info(f"❌ Failed tapped! 🔨 | Balance: <c>{taps_new_balance}</c> "
-                            f"(<g>No coin added 😥</g>) | 👉 Current energy: {available_energy} | "
-                            f"⚡️ Minimum energy limit: {settings.MIN_AVAILABLE_ENERGY} | "
-                            f"Boss health: <e>{boss_current_health}</e>")
-                        balance = new_balance
-                        self.log.warning(f"❌ MemeFi server error 500")
-                        self.log.info(f"😴 Sleep 30s")
-                        await asyncio.sleep(delay=30)
-                        is_no_balance = True
-
-                    if active_turbo is False:
-                        if (energy_boost_count > 0
-                                and available_energy < settings.MIN_AVAILABLE_ENERGY
-                                and settings.APPLY_DAILY_ENERGY is True
-                                and available_energy - need_energy < settings.MIN_AVAILABLE_ENERGY):
-                            self.log.info(f"😴 Sleep 7s before activating the daily energy boost")
-                            await asyncio.sleep(delay=7)
-
-                            status = await self._api.apply_boost(boost_type=FreeBoostType.ENERGY)
-                            if status is True:
-                                self.log.success(f"👉 Energy boost applied")
-
-                                await asyncio.sleep(delay=3)
-
-                            continue
-
-                        if turbo_boost_count > 0 and settings.APPLY_DAILY_TURBO is True:
-                            self.log.info(f"😴 Sleep 10s before activating the daily turbo boost")
-                            await asyncio.sleep(delay=10)
-
-                            status = await self._api.apply_boost(boost_type=FreeBoostType.TURBO)
-                            if status is True:
-                                self.log.success(f"👉 Turbo boost applied")
-
-                                await asyncio.sleep(delay=1)
-
-                                active_turbo = True
-                                turbo_time = time()
-
-                            continue
-
-                        if settings.AUTO_UPGRADE_TAP is True and next_tap_level <= settings.MAX_TAP_LEVEL:
-                            need_balance = 1000 * (2 ** (next_tap_level - 1))
-                            if balance > need_balance:
-                                status = await self._api.upgrade_boost(boost_type=UpgradableBoostType.TAP)
-                                if status is True:
-                                    self.log.success(f"Tap upgraded to {next_tap_level} lvl")
-
-                                    await asyncio.sleep(delay=1)
-                            else:
-                                self.log.info(f"Need more gold for upgrade tap to {next_tap_level}"
-                                            f" lvl ({balance}/{need_balance})")
-
-                        if settings.AUTO_UPGRADE_ENERGY is True and next_energy_level <= settings.MAX_ENERGY_LEVEL:
-                            need_balance = 1000 * (2 ** (next_energy_level - 1))
-                            if balance > need_balance:
-                                status = await self._api.upgrade_boost(boost_type=UpgradableBoostType.ENERGY)
-                                if status is True:
-                                    self.log.success(f"Energy upgraded to {next_energy_level} lvl")
-
-                                    await asyncio.sleep(delay=1)
-                            else:
-                                self.log.warning(f"Need more gold for upgrade energy to {next_energy_level} "
-                                    f"lvl ({balance}/{need_balance})"
-                               )
-
-
-                        if settings.AUTO_UPGRADE_CHARGE is True and next_charge_level <= settings.MAX_CHARGE_LEVEL:
-                            need_balance = 1000 * (2 ** (next_charge_level - 1))
-
-                            if balance > need_balance:
-                                status = await self._api.upgrade_boost(boost_type=UpgradableBoostType.CHARGE)
-                                if status is True:
-                                    self.log.success(f"Charge upgraded to {next_charge_level} lvl")
-
-                                    await asyncio.sleep(delay=1)
-                            else:
-                                self.log.warning(f"Need more gold for upgrade charge to {next_energy_level} "
-                                    f"lvl ({balance}/{need_balance})")
-
-
-                        if available_energy < settings.MIN_AVAILABLE_ENERGY:
-                            self.log.info(f"👉 Minimum energy reached: {available_energy}")
-                            self.log.info(f"😴 Sleep {settings.SLEEP_BY_MIN_ENERGY}s")
-
-                            await asyncio.sleep(delay=settings.SLEEP_BY_MIN_ENERGY)
-
-                            continue
-
-                except InvalidSession as error:
-                    raise error
-
-                except Exception as error:
-                    self.log.error(f"❗️Unknown error: {error}. 😴 Wait 1h")
-                    await asyncio.sleep(delay=3600)
-
+                        await asyncio.sleep(delay=1)
                 else:
-                    sleep_between_clicks = randint(a=settings.SLEEP_BETWEEN_TAP[0], b=settings.SLEEP_BETWEEN_TAP[1])
+                    self.log.info(f"Need more gold for upgrade tap to {next_tap_level}"
+                                  f" lvl ({balance}/{need_balance})")
+            
+            if settings.AUTO_UPGRADE_ENERGY is True and next_energy_level <= settings.MAX_ENERGY_LEVEL:
+                need_balance = 1000 * (2 ** (next_energy_level - 1))
+                if balance > need_balance:
+                    status = await self._api.upgrade_boost(boost_type=UpgradableBoostType.ENERGY)
+                    if status is True:
+                        self.log.success(f"Energy upgraded to {next_energy_level} lvl")
+                        await asyncio.sleep(delay=1)
+                else:
+                    self.log.warning(f"Need more gold for upgrade energy to {next_energy_level} "
+                                     f"lvl ({balance}/{need_balance})")
 
-                    if active_turbo is True:
-                        sleep_between_clicks = 50
-                    elif is_no_balance is True:
-                        sleep_between_clicks = 700
+            if settings.AUTO_UPGRADE_CHARGE is True and next_charge_level <= settings.MAX_CHARGE_LEVEL:
+                need_balance = 1000 * (2 ** (next_charge_level - 1))
+                if balance > need_balance:
+                    status = await self._api.upgrade_boost(boost_type=UpgradableBoostType.CHARGE)
+                    if status is True:
+                        self.log.success(f"Charge upgraded to {next_charge_level} lvl")
+                        await asyncio.sleep(delay=1)
+                else:
+                    self.log.warning(f"Need more gold for upgrade charge to {next_energy_level} "
+                                     f"lvl ({balance}/{need_balance})")
+            
+            if available_energy < settings.MIN_AVAILABLE_ENERGY:
+                self.log.info(f"👉 Minimum energy reached: {available_energy}")
+                self.log.info(f"😴 Sleep {settings.SLEEP_BY_MIN_ENERGY}s")
+                await asyncio.sleep(delay=settings.SLEEP_BY_MIN_ENERGY)
+                return
+            
+        sleep_between_clicks = randint(settings.SLEEP_BETWEEN_TAP[0], settings.SLEEP_BETWEEN_TAP[1])
+        if self.active_turbo is True:
+            sleep_between_clicks = 50
+        elif is_no_balance is True:
+            sleep_between_clicks = 700
+        
+        self.log.info(f"😴 Sleep {sleep_between_clicks}s")
+        await asyncio.sleep(delay=sleep_between_clicks)
+        
+        if http_client is None:
+            await self.http_client.close()
 
-                    self.log.info(f"😴 Sleep {sleep_between_clicks}s")
-                    await asyncio.sleep(delay=sleep_between_clicks)
+    async def run(self):
+        http_client = self.create_http_client()
+        while True:
+            try:
+                await self.run_one_time(http_client=http_client)
+            except InvalidSession as error:
+                raise error
+            except Exception as error:
+                self.log.error(f"❗️Unknown error: {error}. 😴 Wait 1h")
+                await asyncio.sleep(delay=3600)
 
 
 async def run_tapper(tg_client: Client, proxy: str | None):
     session_logger = SessionLogger(tg_client.name)
     try:
-        await Tapper(tg_client=tg_client, logger=session_logger).run(proxy=proxy)
+        await Tapper(tg_client=tg_client, logger=session_logger, proxy=proxy).run()
     except InvalidSession:
         session_logger.error(f"❗️Invalid Session")
     except InvalidProtocol as error:
