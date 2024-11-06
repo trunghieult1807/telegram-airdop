@@ -11,6 +11,7 @@ from pyrogram.raw.types import InputBotAppShortName
 from pyrogram.raw.functions.messages import RequestAppWebView
 from notpixel.config import settings
 from notpixel.core.query import Tapper as QueryTapper
+from exceptions import InvalidSession
 from notpixel.utils import logger
 from random import randint
 import urllib3
