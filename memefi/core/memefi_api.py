@@ -166,6 +166,7 @@ class MemeFiApi:
             for tap in range(taps):
                 tap = randint(1, 4)
                 vector_array.append(tap)
+
             vector = ",".join(str(x) for x in vector_array)
             json_data = {
                 'operationName': OperationName.MutationGameProcessTapsBatch,
@@ -178,7 +179,9 @@ class MemeFiApi:
                     },
                 }
             }
+
             response_json = await self._send_request(json_data)
+
             if 'errors' in response_json:
                 raise InvalidProtocol(f'send_taps msg: {response_json["errors"][0]["message"]}')
 
@@ -238,12 +241,15 @@ class MemeFiApi:
             }
 
             response_json = await self._send_request(json_data)
-
-            if 'errors' in response_json:
-                self.log.error(f"Error while completing task: {response_json['errors'][0]['message']}")
-                return None
-
-            return response_json.get('data', {}).get('campaignTaskMarkAsCompleted')
+            data = response_json.get('data') if isinstance(response_json.get('data'), dict) else {}
+            if data.get('campaignTaskMarkAsCompleted', {}).get("status") == "Completed":
+                self.log.trace("task successful complete!")
+                return True
+            errors = response_json.get('errors') if isinstance(response_json.get('errors'), list) else []
+            if errors and errors[0].get('message') == "Incorrect verification code":
+                self.log.trace("task unsuccessful complete, Incorrect verification code!")
+                return False
+            raise Exception(f"unknown struct. status: {response_json}")
 
         except Exception as e:
             self.log.error(f"Unknown error while completing task: {str(e)}")

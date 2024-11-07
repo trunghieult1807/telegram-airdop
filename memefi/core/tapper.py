@@ -239,12 +239,16 @@ class Tapper:
         if not campaigns:
             return
 
+        campaigns_counter = 0
         for campaign in campaigns:
-            await asyncio.sleep(delay=5)
+            campaigns_counter += 1
+            await asyncio.sleep(delay=1)
             tasks_list: list = await self._api.get_tasks_list(campaigns_id=campaign['id'])
             for task in tasks_list:
-                await asyncio.sleep(delay=randint(5, 15))
-                self.log.info(f"Video: <r>{task['name']}</r> | Status: <y>{task['status']}</y>")
+                await asyncio.sleep(delay=randint(1, 3))
+                # await asyncio.sleep(delay=randint(5, 15))
+                index = f"{campaigns_counter}/{len(campaigns)}"
+                self.log.info(f"Video {index}: <r>{task['name']}</r> | Status: <y>{task['status']}</y>")
 
                 if task['status'] != 'Verification':
                     task = await self._api.verify_campaign(task_id=task['id'])
@@ -256,21 +260,23 @@ class Tapper:
                 if task['status'] == 'Verification' and delta_time > 0:
                     count_sec_need_wait = delta_time + randint(5, 15)
                     self.log.info(f"Video: <r>{task['name']}</r> | Sleep: {int(count_sec_need_wait)}s.")
+                    continue
                     await asyncio.sleep(delay=count_sec_need_wait)
 
-                code = None
                 if task['taskVerificationType'] == "SecretCode":
-                    code = self.video_codes.get_video_code(task['name'])
+                    code = self.video_codes.get_video_code(task)
                     if not code:
-                        self.log.warning(f"Video: <r>{task['name']}</r> | <y>Code not found! ({task['link']})</y>")
+                        self.log.warning(f"<r>Code not found</r> | ID: <y>{task['id']}</y> ({task['link']})")
                         continue
-                    self.log.info(f"Video: <r>{task['name']}</r> | Use code <g>{code}</g>.")
                     complete_task = await self._api.complete_task(user_task_id=task['userTaskId'], code=code)
+                    if not complete_task:
+                        self.log.warning(f"<r>Code incorrect: {code}</r> | ID: <y>{task['id']}</y> ({task['link']})")
+                        self.video_codes.mark_code_as_incorrect(task)
+                    else:
+                        self.video_codes.mark_code_as_correct(task, code)
                 else:
                     complete_task = await self._api.complete_task(user_task_id=task['userTaskId'])
-                if (not complete_task or complete_task.get("complete_task") != 'Completed') and code:
-                    self.video_codes.mark_code_as_incorrect(task['name'], code)
-                message = f"<g>{complete_task.get('status')}</g>" if complete_task \
+                message = f"<g>Complete</g>" if complete_task \
                     else f"<r>Error from complete_task method.</r>"
                 self.log.info(f"Video: <r>{task['name']}</r> | Status: {message}")
 
@@ -401,7 +407,7 @@ class Tapper:
                     taps = randint(a=settings.RANDOM_TAPS_COUNT[0], b=settings.RANDOM_TAPS_COUNT[1])
                     if taps > boss_current_health:
                         taps = boss_max_health - boss_current_health - 10
-                        # return taps
+                        return taps
                     bot_config = await self._api.get_bot_config()
                     telegram_me = await self._api.get_telegram_me()
 
@@ -469,7 +475,7 @@ class Tapper:
                         taps += randint(a=settings.ADD_TAPS_ON_TURBO[0], b=settings.ADD_TAPS_ON_TURBO[1])
                         if taps > boss_current_health:
                             taps = boss_max_health - boss_current_health - 10
-                            # return taps
+                            return taps
 
                         need_energy = 0
 
@@ -624,7 +630,7 @@ class Tapper:
                     raise error
 
                 except Exception as error:
-                    self.log.error(f"❗️Unknown error: {error}. 😴 Wait 1h")
+                    self.log.error(f"❗️Unknown error: {type(error).__name__} {error}. 😴 Wait 1h")
                     await asyncio.sleep(delay=3600)
 
                 else:

@@ -23,7 +23,8 @@ def is_rate_limited(app_name, limit=settings.CHAT_LIMIT, window=settings.CHAT_LI
 
 def api_error_sink(message):
     bot_token = settings.BOT_TOKEN
-    chat_id = settings.CHAT_ID
+    error_chat_id = settings.ERROR_CHAT_ID
+    critical_chat_id = settings.CRITICAL_CHAT_ID
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
    
     try:
@@ -31,9 +32,17 @@ def api_error_sink(message):
         log_message = record["message"]
         appName = record["extra"].get("tag", "")  
         line = record["line"]
+        level = record["level"].name
+        
+        if level == "ERROR":
+            chat_id = error_chat_id
+        elif level == "CRITICAL":
+            chat_id = critical_chat_id
+        else:
+            return  # Skip if level is not ERROR or CRITICAL
         
         # Check rate limit
-        if is_rate_limited(appName):
+        if is_rate_limited(appName+level):
             logger.bind(tag="SYSTEM").warning(f"Rate limit exceeded for {appName}, skipping notification.")
             return
         

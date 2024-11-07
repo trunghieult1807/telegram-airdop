@@ -794,7 +794,9 @@ class Tapper:
                     break
             except InvalidSession as error:
                 raise error
-
+            except ApiChangeDetected as error:
+                logger.critical(error)
+                await asyncio.sleep(600)
             except Exception as error:
                 traceback.print_exc()
                 logger.error(f"{self.session_name} | Unknown error: {error}")
