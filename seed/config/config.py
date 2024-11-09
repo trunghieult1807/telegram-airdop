@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     api_detector_config: ApiDetectorConfig = ApiDetectorConfig(
         app_url = 'https://cf.seeddao.org/',
         target_apis = {
-            'https://elb.seeddao.org',
+            'https://alb.seeddao.org',
         },
         ignore_js_scripts = {
             'https://telegram.org/js/telegram-web-app.js',
