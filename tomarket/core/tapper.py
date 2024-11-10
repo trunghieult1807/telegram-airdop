@@ -10,7 +10,7 @@ import aiohttp
 import pytz
 from aiohttp_proxy import ProxyConnector
 from better_proxy import Proxy
-from pyrogram import Client
+from core.client import Client
 from pyrogram.errors import Unauthorized, UserDeactivated, AuthKeyUnregistered, FloodWait
 from pyrogram.raw.functions.messages import RequestAppWebView
 from pyrogram.raw.types import InputBotAppShortName
@@ -21,7 +21,6 @@ from tzlocal import get_localzone
 from tomarket.config import settings
 from exceptions import InvalidSession, ApiChangeDetected
 from tomarket.utils import logger
-from .agents import generate_random_user_agent
 from .headers import headers
 from tomarket.utils.detector import detector
 
@@ -224,7 +223,7 @@ class Tapper:
             await self.check_proxy(http_client=http_client)
         
         if settings.FAKE_USERAGENT:            
-            http_client.headers['User-Agent'] = generate_random_user_agent(device_type='android', browser_type='chrome')
+            http_client.headers['User-Agent'] = self.tg_client.user_agent
 
         # ``
         # Наши переменные
@@ -247,7 +246,7 @@ class Tapper:
                     proxy_conn = ProxyConnector().from_url(self.proxy) if self.proxy else None
                     http_client = aiohttp.ClientSession(headers=headers, connector=proxy_conn)
                     if settings.FAKE_USERAGENT:            
-                        http_client.headers['User-Agent'] = generate_random_user_agent(device_type='android', browser_type='chrome')
+                        http_client.headers['User-Agent'] = self.tg_client.user_agent
                 current_time = time()
                 if current_time >= token_expiration:
                     if (token_expiration != 0): # Чтобы не пугались, скрою от вас когда происходит первый запуск
