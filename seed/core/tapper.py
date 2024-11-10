@@ -6,7 +6,7 @@ from urllib.parse import unquote
 import aiohttp
 import pytz
 from better_proxy import Proxy
-from pyrogram import Client
+from core.client import Client
 from pyrogram.errors import Unauthorized, UserDeactivated, AuthKeyUnregistered, FloodWait
 from pyrogram.raw.types import InputBotAppShortName
 from pyrogram.raw.functions.messages import RequestAppWebView

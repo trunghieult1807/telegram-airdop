@@ -1,9 +1,9 @@
 import os
 import glob
-from pyrogram import Client
 from utils.config import settings
 import json
 import asyncio
+from core.client import Client
 from coinsweeper.core.tapper import run_tapper as coinsweeper
 from tomarket.core.tapper import run_tapper as tomarket
 from okxracer.core.tapper import run_tapper as okxracer
@@ -25,24 +25,8 @@ async def get_tg_clients() -> list[Client]:
 
     if not session_names:
         raise FileNotFoundError("Not found session files")
-        
-    tg_clients = []
-    for session_name in session_names:        
-        api_id = os.getenv(f"{session_name.upper()}_API_ID") or settings.API_ID
-        api_hash = os.getenv(f"{session_name.upper()}_API_HASH") or settings.API_HASH
-            
-        if not api_id or not api_hash:
-            raise ValueError(f"API_ID and API_HASH not found for session: {session_name}")
-
-        client = Client(
-            name=session_name,
-            api_id=api_id,
-            api_hash=api_hash,
-            workdir="sessions/",
-        )
-        tg_clients.append(client)
-        
-    return tg_clients
+    
+    return [Client(session_name) for session_name in session_names]
 
 async def create_tasks(app_name: str, tg_clients: list[Client]) -> list[asyncio.Task]:
     app_functions = {

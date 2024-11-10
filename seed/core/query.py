@@ -7,7 +7,6 @@ import pytz
 from aiocfscrape import CloudflareScraper
 from aiohttp_proxy import ProxyConnector
 from better_proxy import Proxy
-from seed.core.agents import generate_random_user_agent
 from seed.config import settings
 
 from seed.utils import logger

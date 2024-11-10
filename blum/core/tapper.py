@@ -13,12 +13,11 @@ import requests
 from aiocfscrape import CloudflareScraper
 from aiohttp_proxy import ProxyConnector
 from better_proxy import Proxy
-from pyrogram import Client
+from core.client import Client
 from pyrogram.errors import (Unauthorized, UserDeactivated, AuthKeyUnregistered, FloodWait, UserDeactivatedBan,
                              AuthKeyDuplicated, SessionExpired, SessionRevoked)
 from pyrogram.raw.functions.messages import RequestAppWebView
 from pyrogram.raw import types
-from .agents import generate_random_user_agent
 from blum.config import settings
 
 from blum.utils import logger
@@ -52,9 +51,6 @@ class Tapper:
         headers['User-Agent'] = self.check_user_agent()
         self.proxy = proxy
 
-    async def generate_random_user_agent(self):
-        return generate_random_user_agent(device_type='android', browser_type='chrome')
-
     def info(self, message):
         from blum.utils import info
         info(f"<light-yellow>{self.session_name}</light-yellow> | {message}")
@@ -83,7 +79,7 @@ class Tapper:
         user_agents_file_name = "user_agents.json"
 
         if not any(session['session_name'] == self.session_name for session in self.session_ug_dict):
-            user_agent_str = generate_random_user_agent()
+            user_agent_str = self.tg_client.user_agent
 
             self.session_ug_dict.append({
                 'session_name': self.session_name,
