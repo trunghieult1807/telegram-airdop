@@ -1,6 +1,5 @@
 import os
 import glob
-from utils.config import settings
 import json
 import asyncio
 from core.client import Client
