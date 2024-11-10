@@ -69,7 +69,7 @@ python main.py
 
 # Configure bots
 
-See the supported features and settings:
+See the supported features and settings
 
 ## [Blum](docs/BLUM.md)
 
