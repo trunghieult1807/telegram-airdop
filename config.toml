@@ -1,5 +1,8 @@
 apps = ['blum', 'coinsweeper', 'notpixel', 'okxracer', 'seed']
-sessions = ['test']
+sessions = ['test', 'mrluas6']
 
 [test]
 skip_app = []
+
+[mrluas6]
+skip_app = ['blum', 'coinsweeper', 'notpixel', 'okxracer']

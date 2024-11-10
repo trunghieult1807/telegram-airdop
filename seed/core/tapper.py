@@ -3,8 +3,7 @@ import random
 from datetime import datetime, timezone
 from urllib.parse import unquote
 
-import aiohttp
-import pytz
+import json
 from better_proxy import Proxy
 from core.client import Client
 from pyrogram.errors import Unauthorized, UserDeactivated, AuthKeyUnregistered, FloodWait
@@ -19,9 +18,9 @@ from random import randint
 
 class Tapper(QueryTapper):
     def __init__(self, tg_client: Client, proxy: str | None):
-        super().__init__(Query='', session_name=tg_client.name, proxy=proxy)
-        self.tg_client = tg_client
-
+        super().__init__(Query='', session_name=tg_client.name, user_agent=tg_client.user_agent, proxy=proxy)
+        self.tg_client = tg_client        
+        
     async def get_tg_web_data(self) -> str:
         if settings.REF_LINK == '':
             ref_ = "t.me/seed_coin_bot/app?startapp=5268227136"
@@ -89,7 +88,6 @@ class Tapper(QueryTapper):
             await asyncio.sleep(delay=3)
 
 async def run_tapper(tg_client: Client, proxy: str | None):
-
     try:
         sleep_ = randint(1, 25)
         logger.info(f"Wait {sleep_}s")

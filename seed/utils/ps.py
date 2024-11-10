@@ -3,7 +3,7 @@ import re
 from seed.utils import logger
 from seed.config import settings
 
-baseUrl = "https://elb.seeddao.org"
+baseUrl = "https://alb.seeddao.org"
 
 headers = {
     'accept': '*/*',
