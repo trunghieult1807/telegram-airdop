@@ -2,6 +2,7 @@ import os
 from pyrogram import Client as BaseClient
 from utils.config import settings
 from core.agents import generate_random_user_agent
+from core.config import Config
 
 
 SESSION_DIR = 'sessions/'
@@ -13,3 +14,5 @@ class Client(BaseClient):
         kwargs['workdir'] = SESSION_DIR
         super().__init__(name, **kwargs)
         self.user_agent = generate_random_user_agent()
+        self.apps = Config.get_session_run_apps(name)
+        
