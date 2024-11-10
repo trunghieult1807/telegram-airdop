@@ -1,6 +1,5 @@
 import os
 import glob
-import json
 import asyncio
 from core.client import Client
 from core.config import Config
@@ -45,6 +44,9 @@ async def create_tasks(tg_clients: list[Client]) -> list[asyncio.Task]:
     for tg_client in tg_clients:
         for app in tg_client.apps:
             target_function = APP_FUNCTIONS.get(app)
+            if target_function is None:
+                glogger.warning(f"App function not found: {app}")
+                continue
             task = asyncio.create_task(target_function(tg_client=tg_client, proxy=None))
             tasks.append(task)
     return tasks

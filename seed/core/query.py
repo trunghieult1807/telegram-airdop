@@ -19,7 +19,7 @@ import time
 from ..utils.detector import detector
 
 # api endpoint
-api_endpoint = "https://elb.seeddao.org/"
+api_endpoint = "https://alb.seeddao.org/"
 
 # api endpoint
 api_claim = f'{api_endpoint}api/v1/seed/claim'
@@ -41,7 +41,7 @@ new_user_api = f'{api_endpoint}api/v1/profile2'
 
 
 class Tapper:
-    def __init__(self, Query: str, session_name: str, proxy: str | None):
+    def __init__(self, Query: str, session_name: str, user_agent: str | None, proxy: str | None):
         self.session_name = session_name
         self.first_name = ''
         self.last_name = ''
@@ -63,9 +63,19 @@ class Tapper:
         self.http_client = self.create_http_client()
         self.access_token_created_time = 0
         self.token_live_time = randint(3500, 3600)
-    
-    async def get_tg_web_data(self) -> str:
-        return self.auth
+        self.can_run = True
+        self.academy_ans = {
+            "What is TON?": "Ton",
+            "Coin vs Token": "Tokens",
+            "What is Airdrop?": "Airdrop",
+            "Hot vs Cold Wallet": "Wallet",
+            "Crypto vs Blockchain": "Cryptocurrency",
+            "Learn Blockchain in 3 mins": "Blockchain",
+            "News affecting the BTC price": "BTCTOTHEMOON",
+            "On-chain vs Off-chain #8": "TRANSACTION",
+            "#9 CEX vs DEX": "OKXEED"
+        }
+        headers['User-Agent'] = user_agent
 
     async def check_proxy(self, http_client: aiohttp.ClientSession, proxy: Proxy) -> None:
         try:
@@ -165,7 +175,7 @@ class Tapper:
                 logger.info(f"{self.session_name} | Failed | {checkin_data}")
 
     async def fetch_worm_status(self, http_client: aiohttp.ClientSession):
-        response = await http_client.get('https://elb.seeddao.org/api/v1/worms')
+        response = await http_client.get(f'{api_endpoint}api/v1/worms')
         if response.status == 200:
             worm_info = await response.json()
             next_refresh = worm_info['data'].get('next_worm')
@@ -188,7 +198,7 @@ class Tapper:
     async def capture_worm(self, http_client: aiohttp.ClientSession):
         worm_info = await self.fetch_worm_status(http_client)
         if worm_info and not worm_info.get('is_caught', True):
-            response = await http_client.post('https://elb.seeddao.org/api/v1/worms/catch')
+            response = await http_client.post(f'{api_endpoint}api/v1/worms/catch')
             if response.status == 200:
                 logger.success(f"{self.session_name} | <green>Worm Captured Successfully</green>")
             elif response.status == 400:
@@ -205,16 +215,29 @@ class Tapper:
         tasks = await response.json()
         for task in tasks['data']:
             if task['task_user'] is None:
-                await self.mark_task_complete(task['id'], task['name'], http_client)
+                await self.mark_task_complete(task['id'], task['name'], task['type'], http_client)
             elif task['task_user']['completed'] is False:
-                await self.mark_task_complete(task['id'], task['name'], http_client)
+                await self.mark_task_complete(task['id'], task['name'], task['type'], http_client)
 
-    async def mark_task_complete(self, task_id, task_name, http_client: aiohttp.ClientSession):
-        response = await http_client.post(f'{api_endpoint}api/v1/tasks/{task_id}')
-        if response.status == 200:
-            logger.success(f"{self.session_name} | <green>Task {task_name} marked complete.</green>")
+    async def mark_task_complete(self, task_id, task_name, type, http_client: aiohttp.ClientSession):
+        if type == "academy":
+            if task_name not in list(self.academy_ans.keys()):
+                return
+            payload = {
+                "answer": self.academy_ans[task_name]
+            }
+            response = await http_client.post(f'{api_endpoint}api/v1/tasks/{task_id}', json=payload)
+            if response.status == 200:
+                logger.success(f"{self.session_name} | <green>Task {task_name} marked complete.</green>")
+            else:
+                logger.error(
+                    f"{self.session_name} | Failed to complete task {task_name}, status code: {response.status}")
         else:
-            logger.error(f"{self.session_name} | Failed to complete task {task_name}, status code: {response.status}")
+            response = await http_client.post(f'{api_endpoint}api/v1/tasks/{task_id}')
+            if response.status == 200:
+                logger.success(f"{self.session_name} | <green>Task {task_name} marked complete.</green>")
+            else:
+                logger.error(f"{self.session_name} | Failed to complete task {task_name}, status code: {response.status}")
 
     async def claim_hunt_reward(self, bird_id, http_client: aiohttp.ClientSession):
         payload = {
@@ -736,16 +759,3 @@ class Tapper:
                 traceback.print_exc()
                 logger.error(f"{self.session_name} | Unknown error: {error}")
                 await asyncio.sleep(delay=randint(60, 120))
-
-
-async def run_tapper_query(query_list: list[str], proxies: list[str]):
-    while 1:
-        proxies_cycle = cycle(proxies) if proxies else None
-        # await asyncio.sleep(500)
-        for query in query_list:
-            proxy = next(proxies_cycle) if proxies_cycle else None
-            await Tapper(Query=query, proxy=proxy).run()
-            await asyncio.sleep(randint(5,15))
-        sleep_ = randint(2500, 3600)
-        logger.info(f"<red>Sleep {sleep_}s...</red>")
-        await asyncio.sleep(sleep_)
