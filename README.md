@@ -4,7 +4,7 @@
 </p>
 
 <p align="center">
-    <a href="https://www.python.org/downloads/release/python-3100/"><img src="https://img.shields.io/badge/python-3.10-blue.svg?style=plastic" alt="Python version"></a>
+    <a href="https://www.python.org/downloads/release/python-3100/"><img src="https://img.shields.io/badge/python-3.11-blue.svg?style=plastic" alt="Python version"></a>
     <a href="https://github.com/trunghieult1807/telegram-airdop/blob/19ade5543c0c9be0d72055fd808915dcf82c939f/LICENSE"><img src="https://img.shields.io/github/license/trunghieult1807/telegram-airdop?style=plastic" alt="GitHub license"></a>
     <a href="https://github.com/trunghieult1807/telegram-airdop/issues"><img src="https://img.shields.io/github/issues/trunghieult1807/telegram-airdop?style=plastic" alt="GitHub issues"></a>
     <a href="https://github.com/trunghieult1807/telegram-airdop/pulls"><img src="https://img.shields.io/github/issues-pr/trunghieult1807/telegram-airdop?style=plastic" alt="GitHub pull requests"></a>
@@ -15,7 +15,7 @@
 
 [![Static Badge](https://img.shields.io/badge/Telegram-Channel-Link?style=for-the-badge&logo=Telegram&logoColor=white&logoSize=auto&color=blue)](https://t.me/EwwMD)
 
-# 🔥🔥 PYTHON version must be 3.10 - 3.11.5 🔥🔥
+# 🔥🔥 PYTHON version must be `>=3.11` 🔥🔥
 
 #  1. Bybit Coinsweeper Bot [![Static Badge](https://img.shields.io/badge/Telegram-Bot%20Link-Link?style=for-the-badge&logo=Telegram&logoColor=white&logoSize=auto&color=blue)](https://t.me/BybitCoinsweeper_Bot?start=referredBy=5268227136)
 
@@ -143,7 +143,7 @@
 
 ## Prerequisites
 Before you begin, make sure you have the following installed:
-- [**Python**](https://www.python.org/downloads/release/python-3100/) **version 3.10**
+- [**Python**](https://www.python.org/downloads/release/python-3110/) **version 3.11**
 
 ## Obtaining API Keys
 1. Go to [**my.telegram.org**](https://my.telegram.org/auth) and log in using your phone number.
