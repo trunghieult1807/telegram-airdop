@@ -6,7 +6,7 @@ import aiohttp
 from aiocfscrape import CloudflareScraper
 from aiohttp_proxy import ProxyConnector
 from better_proxy import Proxy
-from pyrogram import Client
+from core.client import Client
 from pyrogram.errors import Unauthorized, UserDeactivated, AuthKeyUnregistered, FloodWait
 from pyrogram.raw import functions
 from pyrogram.raw.functions.messages import RequestWebView

@@ -9,7 +9,7 @@ import aiohttp
 from aiocfscrape import CloudflareScraper
 from aiohttp_proxy import ProxyConnector
 from better_proxy import Proxy
-from pyrogram import Client
+from core.client import Client
 from pyrogram.errors import Unauthorized, UserDeactivated, AuthKeyUnregistered
 from pyrogram.raw.functions.messages import RequestWebView
 from datetime import datetime, timezone
@@ -21,7 +21,6 @@ from memefi.utils.checkers import first_check_clan, set_first_run_check_clan, is
 from memefi.utils.graphql import Query, OperationName
 from memefi.utils.boosts import FreeBoostType, UpgradableBoostType
 from memefi.core.headers import headers
-from memefi.core.agents import generate_random_user_agent
 
 from memefi.core.TLS import TLSv1_3_BYPASS
 from memefi.exceptions import InvalidSession, InvalidProtocol
@@ -56,7 +55,7 @@ class Tapper:
     def save_user_agent(self):
 
         if not any(session['session_name'] == self.tg_client.name for session in self.session_ug_dict):
-            user_agent_str = generate_random_user_agent()
+            user_agent_str = self.tg_client.user_agent
 
             self.session_ug_dict.append({
                 'session_name': self.tg_client.name,
