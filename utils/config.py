@@ -9,7 +9,8 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     USE_TELEGRAM_NOTI: bool = False
     BOT_TOKEN: str = ''
-    CHAT_ID: str = ''
+    ERROR_CHAT_ID: str = ''
+    CRITICAL_CHAT_ID: str = ''
     CHAT_LIMIT: int = 3
     CHAT_LIMIT_WINDOW: int = 60 # seconds
     

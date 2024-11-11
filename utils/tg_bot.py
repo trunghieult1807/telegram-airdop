@@ -1,11 +1,11 @@
 import requests
 import time
+import sys
 from collections import defaultdict
 from .config import settings
 from loguru import logger
 
 def is_rate_limited(app_name, limit=settings.CHAT_LIMIT, window=settings.CHAT_LIMIT_WINDOW):
-    """Check if appName has exceeded rate limit within the time window (in seconds)."""
     request_log = defaultdict(list)
     current_time = time.time()
     
@@ -20,7 +20,6 @@ def is_rate_limited(app_name, limit=settings.CHAT_LIMIT, window=settings.CHAT_LI
 
 def notification_sink(message):
     bot_token = settings.BOT_TOKEN
-    chat_id = settings.CHAT_ID
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
    
     try:
@@ -28,10 +27,18 @@ def notification_sink(message):
         log_message = record["message"]
         appName = record["extra"].get("tag", "")  
         line = record["line"]
-        
+        level = record["level"].name 
+
+        if level == "ERROR":
+            chat_id = settings.ERROR_CHAT_ID
+        elif level == "CRITICAL":
+            chat_id = settings.CRITICAL_CHAT_ID
+        else:
+            return  
+            
         # Check rate limit
         if is_rate_limited(appName):
-            logger.bind(tag="SYSTEM").warning(f"Rate limit exceeded for {appName}, skipping notification.")
+            print(f"Rate limit exceeded for {appName}, skipping notification.", file=sys.stderr)
             return
         
         # Format the final notification message
@@ -49,6 +56,6 @@ def notification_sink(message):
         
         response = requests.post(url, json=payload)
         response.raise_for_status()
-        logger.bind(tag="SYSTEM").info(f"Notification sent: {response.status_code}")
+        print(f"Notification sent: {response.status_code}", file=sys.stderr)
     except requests.RequestException as e:
-        logger.bind(tag="SYSTEM").error(f"Send notification failed: {e}")
+        print(f"Send notification failed: {e}", file=sys.stderr)
