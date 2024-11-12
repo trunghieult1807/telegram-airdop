@@ -19,12 +19,13 @@ from random import randint, choices
 
 
 class Tapper:
-    def __init__(self, tg_client: Client, proxy: str | None):
+    def __init__(self, tg_client: Client, multi_thread: bool | None, proxy: str | None):
         self.tg_client = tg_client
         self.session_name = tg_client.name
         self.first_name = ''
         self.last_name = ''
         self.user_id = ''
+        self.multi_thread = multi_thread
         self.proxy = proxy
         self.access_token_created_time = 0
         self.token_live_time = randint(3500, 3600)

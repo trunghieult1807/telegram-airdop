@@ -17,9 +17,10 @@ from random import randint
 
 
 class Tapper(QueryTapper):
-    def __init__(self, tg_client: Client, proxy: str | None):
+    def __init__(self, tg_client: Client, multi_thread: bool | None, proxy: str | None):
         super().__init__(Query='', session_name=tg_client.name, user_agent=tg_client.user_agent, proxy=proxy)
-        self.tg_client = tg_client        
+        self.tg_client = tg_client
+        self.multi_thread = multi_thread
         
     async def get_tg_web_data(self) -> str:
         if settings.REF_LINK == '':

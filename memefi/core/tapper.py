@@ -26,17 +26,17 @@ from memefi.core.TLS import TLSv1_3_BYPASS
 from memefi.exceptions import InvalidSession, InvalidProtocol
 from memefi.utils.codes import VideoCodes
 from memefi.core.memefi_api import MemeFiApi
-from memefi.utils.logger import SessionLogger
+from memefi.utils.logger import SessionLogger, logger
 
 from utils.time_list import TimedList
 
 
 class Tapper:
-    def __init__(self, tg_client: Client, logger: SessionLogger, proxy: str | None):
+    def __init__(self, tg_client: Client, multi_thread: bool | None, proxy: str | None):
         self.tg_client = tg_client
         self.video_codes = VideoCodes()
-        self.log = logger
-        self._api = MemeFiApi(logger=logger)
+        self.log = SessionLogger(tg_client.name)
+        self._api = MemeFiApi(logger=self.log)
         self._last_update_codes_timestamp = 0
 
         self.session_ug_dict = self.load_user_agents() or []
@@ -45,6 +45,7 @@ class Tapper:
         self.turbo_time = 0
         self.active_turbo = False
         self.proxy = proxy
+        self.multi_thread = multi_thread
     
     def create_http_client(self):
         ssl_context = TLSv1_3_BYPASS.create_ssl_context()
@@ -605,10 +606,9 @@ class Tapper:
 
 
 async def run_tapper(tg_client: Client, proxy: str | None):
-    session_logger = SessionLogger(tg_client.name)
     try:
-        await Tapper(tg_client=tg_client, logger=session_logger, proxy=proxy).run()
+        await Tapper(tg_client=tg_client, proxy=proxy).run()
     except InvalidSession:
-        session_logger.error(f"❗️Invalid Session")
+        logger.error(f"❗️Invalid Session")
     except InvalidProtocol as error:
-        session_logger.error(f"❗️Invalid protocol detected at {error}")
+        logger.error(f"❗️Invalid protocol detected at {error}")

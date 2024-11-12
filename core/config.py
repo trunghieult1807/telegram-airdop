@@ -9,6 +9,7 @@ class BotConfig(BaseSettings):
     apps: set[str] = []
     sessions: set[str] = []
     sessions_config: dict[str, SessionConfig] = Field(default_factory=dict)
+    multi_thread: bool = True
 
     @classmethod
     def parse_toml(cls, path: str):
@@ -19,7 +20,7 @@ class BotConfig(BaseSettings):
             for session_name in config_data.get('sessions', [])
             if session_name in config_data
         }
-        selected_fields = { 'apps', 'sessions', 'sessions_config' }
+        selected_fields = { 'apps', 'sessions', 'sessions_config', 'multi_thread' }
         config_data = { k: v for k, v in config_data.items() if k in selected_fields }
         return cls(**config_data)
     

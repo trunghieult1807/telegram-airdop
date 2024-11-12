@@ -27,7 +27,7 @@ from .helper import format_duration
 
 
 class Tapper:
-    def __init__(self, tg_client: Client, proxy: str | None):
+    def __init__(self, tg_client: Client, multi_thread: bool | None, proxy: str | None):
         self.session_name = tg_client.name
         self.tg_client = tg_client
         self.user_id = 0
@@ -38,6 +38,7 @@ class Tapper:
         self.start_param = None
         self.peer = None
         self.first_run = None
+        self.multi_thread = multi_thread
         self.gateway_url = "https://gateway.blum.codes"
         self.game_url = "https://game-domain.blum.codes"
         self.wallet_url = "https://wallet-domain.blum.codes"
