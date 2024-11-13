@@ -35,7 +35,10 @@ Before you begin, make sure you have the following installed:
 
 # Installation
 
-You can download this [**repository**](https://github.com/trunghieult1807/telegram-airdop) and install by following methods:
+1. You can download this [**repository**](https://github.com/trunghieult1807/telegram-airdop)
+2. Copy `.env-example` to `.env`
+3. Copy `config.toml` to `config.local.toml`
+4. Run by following methods:
 
 ## Docker installation **(RECOMMENDED)**
 

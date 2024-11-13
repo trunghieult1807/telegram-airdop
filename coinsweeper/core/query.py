@@ -17,9 +17,10 @@ from better_proxy import Proxy
 import cloudscraper
 
 from coinsweeper.config import settings
+from core.config import Config
 
 from coinsweeper.utils import logger
-from exceptions import InvalidSession, ApiChangeDetected, GetUserInfoError
+from exceptions import InvalidSession, GetUserInfoError
 from coinsweeper.core.headers import headers, login_headers
 from random import randint
 import math
@@ -40,7 +41,7 @@ def calc(i, s, a, o, d, g):
 
 
 class Tapper:
-    def __init__(self, query: str, session_name: str, multi_thread: bool, proxy: str | None):
+    def __init__(self, query: str, session_name: str, proxy: str | None):
         self.query = query
         self.session_name = session_name
         self.first_name = ''
@@ -57,13 +58,11 @@ class Tapper:
         self.access_token = None
         self.refresh_token_ = None
         self.logged = False
-        self.multi_thread = multi_thread
         self.proxy = proxy
         self.access_token_created_time = 0
         self.token_live_time = randint(3500, 3600)
         self.jwt_token_create_time = 0
         self.jwt_live_time = randint(850, 900)
-        self.session = cloudscraper.create_scraper()
 
     async def check_proxy(self, http_client: aiohttp.ClientSession, proxy: Proxy):
         try:
@@ -126,7 +125,7 @@ class Tapper:
     async def get_tg_web_data(self) -> str:
         return self.query
 
-    async def run_one_time(self):
+    async def __process(self, session: requests.Session):
         detector.check_api_and_raise()
 
         if time() - self.jwt_token_create_time >= self.jwt_live_time:
@@ -138,13 +137,13 @@ class Tapper:
             tg_web_data = await self.get_tg_web_data()
             headers['Tl-Init-Data'] = tg_web_data
             self.auth_token = tg_web_data
-            self.login(self.session)
+            self.login(session)
             self.access_token_created_time = time()
             self.token_live_time = randint(3500, 3600)
             
         self.logged = True
         if self.logged:
-            self.get_me(self.session)
+            self.get_me(session)
 
             attempt_play = randint(settings.GAME_PLAY_EACH_ROUND[0], settings.GAME_PLAY_EACH_ROUND[1])
             while attempt_play > 0:
@@ -152,9 +151,9 @@ class Tapper:
                 wl = randint(1, 100)
                 if wl > 90:
                     try:
-                        res = self.session.post("https://api.bybitcoinsweeper.com/api/games/start", headers=headers)
+                        res = session.post("https://api.bybitcoinsweeper.com/api/games/start", headers=headers)
                         if res.status_code == 401:
-                            self.refresh_token(self.session)
+                            self.refresh_token(session)
                             continue
                 
                         game_data = res.json()
@@ -172,21 +171,21 @@ class Tapper:
                             "gameId": game_id,
                             "gifts": gifts
                         }
-                        res = self.session.post("https://api.bybitcoinsweeper.com/api/games/lose", headers=headers,json=payload)
+                        res = session.post("https://api.bybitcoinsweeper.com/api/games/lose", headers=headers,json=payload)
                         if res.status_code == 201:
                             logger.info(f"{self.session_name} | <red>Lose game: </red><cyan>{game_id}</cyan> <red>:(</red>")
                             # await asyncio.sleep(random.uniform(0.5, 1.5))
-                            self.get_me(self.session)
+                            self.get_me(session)
                         elif res.status_code == 401:
-                            self.refresh_token(self.session)
+                            self.refresh_token(session)
                             continue
                     except Exception as e:
                         logger.warning(f"{self.session_name} | Unknown error while trying to play game: {e}")
                 else:
                     try:
-                        res = self.session.post("https://api.bybitcoinsweeper.com/api/games/start", headers=headers)
+                        res = session.post("https://api.bybitcoinsweeper.com/api/games/start", headers=headers)
                         if res.status_code == 401:
-                            self.refresh_token(self.session)
+                            self.refresh_token(session)
                             continue
                         
                         game_data = res.json()
@@ -219,13 +218,13 @@ class Tapper:
                             "h": _r,
                             "score": lr_pl
                         }
-                        res = self.session.post("https://api.bybitcoinsweeper.com/api/games/win", json=payload, headers=headers)
+                        res = session.post("https://api.bybitcoinsweeper.com/api/games/win", json=payload, headers=headers)
 
                         if res.status_code == 201:
                             logger.info( f"{self.session_name} | <green> Won game : </green><cyan>{game_id}</cyan> | Earned <yellow>{int(lr_pl)}</yellow>")
-                            self.get_me(self.session)
+                            self.get_me(session)
                         elif res.status_code == 401:
-                            self.refresh_token(self.session)
+                            self.refresh_token(session)
                             continue
                     except Exception as e:
                         logger.warning(f"{self.session_name} | Unknown error while trying to play game: {e} - Sleep 20s")
@@ -234,41 +233,49 @@ class Tapper:
 
                 await asyncio.sleep(randint(15, 25))
 
-    async def run(self) -> None:
-        proxy_conn = ProxyConnector().from_url(self.proxy) if self.proxy else None
-        http_client = CloudflareScraper(headers=headers, connector=proxy_conn)
-
-        if self.proxy:
-            proxy_check = await self.check_proxy(http_client=http_client, proxy=self.proxy)
-            if proxy_check:
-                proxy_type = self.proxy.split(':')[0]
-                proxies = {
-                    proxy_type: self.proxy
-                }
-                self.session.proxies.update(proxies)
-                logger.info(f"{self.session_name} | bind with proxy ip: {self.proxy}")
-
-        while True:
+    async def run_one_time(self) -> None:
+        with requests.Session() as session:
             try:
-                await self.run_one_time()
+                proxy_conn = ProxyConnector().from_url(self.proxy) if self.proxy else None
+                async with CloudflareScraper(headers=headers, connector=proxy_conn) as http_client:
+                    if self.proxy:
+                        proxy_check = await self.check_proxy(http_client=http_client, proxy=self.proxy)
+                        if proxy_check:
+                            proxy_type = self.proxy.split(':')[0]
+                            proxies = {
+                                proxy_type: self.proxy
+                            }
+                            session.proxies.update(proxies)
+                            logger.info(f"{self.session_name} | bind with proxy ip: {self.proxy}")
+                            
+                await self.__process(session=session)
+            except Exception as error:
+                logger.error(f"{self.session_name} | Unknown error: {error}")
 
-                if self.multi_thread:
+    async def run(self) -> None:
+        with requests.Session() as session:
+            proxy_conn = ProxyConnector().from_url(self.proxy) if self.proxy else None
+            async with CloudflareScraper(headers=headers, connector=proxy_conn) as http_client:
+                if self.proxy:
+                    proxy_check = await self.check_proxy(http_client=http_client, proxy=self.proxy)
+                    if proxy_check:
+                        proxy_type = self.proxy.split(':')[0]
+                        proxies = {
+                            proxy_type: self.proxy
+                        }
+                        session.proxies.update(proxies)
+                        logger.info(f"{self.session_name} | bind with proxy ip: {self.proxy}")
+
+            while True:
+                try:
+                    await self.__process(session=session)
+
                     sleep_ = randint(500, 1000)
                     logger.info(f"{self.session_name} | Sleep {sleep_}s...")
                     await asyncio.sleep(sleep_)
-                else:
-                    await http_client.close()
-                    self.session.close()
-                    return
-            except InvalidSession as error:
-                raise error
-            except ApiChangeDetected as error:
-                logger.error(error)
-                await asyncio.sleep(600)
-            except Exception as error:
-                logger.error(f"{self.session_name} | Unknown error: {error}")
-                await asyncio.sleep(delay=randint(60, 120))
-
+                except Exception as error:
+                    logger.error(f"{self.session_name} | Unknown error: {error}")
+                    await asyncio.sleep(delay=randint(60, 120))
 
 
 async def run_query_tapper(query: str, name: str, proxy: str | None):
@@ -276,6 +283,6 @@ async def run_query_tapper(query: str, name: str, proxy: str | None):
         sleep_ = randint(1, 15)
         logger.info(f"{name} | start after {sleep_}s")
         await asyncio.sleep(sleep_)
-        await Tapper(query=query, session_name=name, multi_thread=True, proxy=proxy).run()
+        await Tapper(query=query, session_name=name, proxy=proxy).run()
     except InvalidSession:
         logger.error(f"{name} | Invalid Query: {query}")

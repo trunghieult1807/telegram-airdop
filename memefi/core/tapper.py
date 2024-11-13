@@ -23,20 +23,20 @@ from memefi.utils.boosts import FreeBoostType, UpgradableBoostType
 from memefi.core.headers import headers
 
 from memefi.core.TLS import TLSv1_3_BYPASS
-from memefi.exceptions import InvalidSession, InvalidProtocol
 from memefi.utils.codes import VideoCodes
 from memefi.core.memefi_api import MemeFiApi
-from memefi.utils.logger import SessionLogger
+from memefi.utils.logger import SessionLogger, logger
 
+from exceptions import InvalidSession, InvalidProtocol
 from utils.time_list import TimedList
 
 
 class Tapper:
-    def __init__(self, tg_client: Client, logger: SessionLogger, proxy: str | None):
+    def __init__(self, tg_client: Client, proxy: str | None):
         self.tg_client = tg_client
         self.video_codes = VideoCodes()
-        self.log = logger
-        self._api = MemeFiApi(logger=logger)
+        self.log = SessionLogger(tg_client.name)
+        self._api = MemeFiApi(logger=self.log)
         self._last_update_codes_timestamp = 0
 
         self.session_ug_dict = self.load_user_agents() or []
@@ -181,10 +181,6 @@ class Tapper:
                 await self.tg_client.disconnect()
 
             return json_data
-
-        except InvalidSession as error:
-            raise error
-
         except Exception as error:
             self.log.error(f"❗️ Unknown error during Authorization: {error}")
             await asyncio.sleep(delay=5)
@@ -300,13 +296,10 @@ class Tapper:
         await self._api.get_telegram_me()
         return True
 
-    async def run_one_time(self, http_client: aiohttp.ClientSession = None):
-        self.http_client = self.create_http_client() if http_client is None else http_client
-        self._api.set_http_client(http_client=self.http_client)
-        
-        is_no_balance = False
+    async def __process(self, http_client: aiohttp.ClientSession):
+        self.is_no_balance = False
         if time() - self.access_token_created_time >= 5400:
-            is_success = await self.update_authorization(http_client=self.http_client, proxy=self.proxy)
+            is_success = await self.update_authorization(http_client=http_client, proxy=self.proxy)
             if not is_success:
                 await asyncio.sleep(delay=5)
                 return
@@ -339,8 +332,8 @@ class Tapper:
             self.log.info(f"💳 Linea wallet address: <y>{linea_wallet}</y>")
             if settings.LINEA_SHOW_BALANCE:
                 if settings.LINEA_API != '':
-                    balance_eth = await self.get_linea_wallet_balance(http_client=self.http_client, linea_wallet=linea_wallet)
-                    eth_price = await self.get_eth_price(http_client=self.http_client, balance_eth=balance_eth)
+                    balance_eth = await self.get_linea_wallet_balance(http_client=http_client, linea_wallet=linea_wallet)
+                    eth_price = await self.get_eth_price(http_client=http_client, balance_eth=balance_eth)
                     self.log.info(f"ETH Balance: <g>{balance_eth}</g> | USD Balance: <e>{eth_price}</e>")
                 elif settings.LINEA_API == '':
                     self.log.info(f"💵 LINEA_API must be specified to show the balance")
@@ -514,7 +507,7 @@ class Tapper:
             self.log.warning(f"❌ MemeFi server error 500")
             self.log.info(f"😴 Sleep 30s")
             await asyncio.sleep(delay=30)
-            is_no_balance = True
+            self.is_no_balance = True
         
         if self.active_turbo is False:
             if (energy_boost_count > 0
@@ -580,35 +573,37 @@ class Tapper:
                 await asyncio.sleep(delay=settings.SLEEP_BY_MIN_ENERGY)
                 return
             
-        sleep_between_clicks = randint(settings.SLEEP_BETWEEN_TAP[0], settings.SLEEP_BETWEEN_TAP[1])
-        if self.active_turbo is True:
-            sleep_between_clicks = 50
-        elif is_no_balance is True:
-            sleep_between_clicks = 700
-        
-        self.log.info(f"😴 Sleep {sleep_between_clicks}s")
-        await asyncio.sleep(delay=sleep_between_clicks)
-        
-        if http_client is None:
-            await self.http_client.close()
+    async def run_one_time(self):
+        async with self.create_http_client() as http_client:
+            try:
+                self._api.set_http_client(http_client=http_client)
+                await self.__process(http_client=http_client)
+            except Exception as error:
+                self.log.error(f"❗️Unknown error: {error}.")
 
     async def run(self):
-        http_client = self.create_http_client()
-        while True:
-            try:
-                await self.run_one_time(http_client=http_client)
-            except InvalidSession as error:
-                raise error
-            except Exception as error:
-                self.log.error(f"❗️Unknown error: {error}. 😴 Wait 1h")
-                await asyncio.sleep(delay=3600)
+        async with self.create_http_client() as http_client:
+            self._api.set_http_client(http_client=http_client)
+            while True:
+                try:
+                    await self.__process(http_client=http_client)
+                    sleep_between_clicks = randint(settings.SLEEP_BETWEEN_TAP[0], settings.SLEEP_BETWEEN_TAP[1])
+                    if self.active_turbo is True:
+                        sleep_between_clicks = 50
+                    elif self.is_no_balance is True:
+                        sleep_between_clicks = 700
+                    
+                    self.log.info(f"😴 Sleep {sleep_between_clicks}s")
+                    await asyncio.sleep(delay=sleep_between_clicks)
+                except Exception as error:
+                    self.log.error(f"❗️Unknown error: {error}. 😴 Wait 1h")
+                    await asyncio.sleep(delay=3600)
 
 
 async def run_tapper(tg_client: Client, proxy: str | None):
-    session_logger = SessionLogger(tg_client.name)
     try:
-        await Tapper(tg_client=tg_client, logger=session_logger, proxy=proxy).run()
+        await Tapper(tg_client=tg_client, proxy=proxy).run()
     except InvalidSession:
-        session_logger.error(f"❗️Invalid Session")
+        logger.error(f"❗️Invalid Session")
     except InvalidProtocol as error:
-        session_logger.error(f"❗️Invalid protocol detected at {error}")
+        logger.error(f"❗️Invalid protocol detected at {error}")

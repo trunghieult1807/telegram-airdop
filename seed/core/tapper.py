@@ -19,7 +19,7 @@ from random import randint
 class Tapper(QueryTapper):
     def __init__(self, tg_client: Client, proxy: str | None):
         super().__init__(Query='', session_name=tg_client.name, user_agent=tg_client.user_agent, proxy=proxy)
-        self.tg_client = tg_client        
+        self.tg_client = tg_client
         
     async def get_tg_web_data(self) -> str:
         if settings.REF_LINK == '':
@@ -71,20 +71,14 @@ class Tapper(QueryTapper):
             ))
 
             auth_url = web_view.url
-            # print(auth_url)
             tg_web_data = unquote(string=auth_url.split('tgWebAppData=')[1].split('&tgWebAppVersion')[0])
 
             if self.tg_client.is_connected:
                 await self.tg_client.disconnect()
 
             return tg_web_data
-
-        except InvalidSession as error:
-            raise error
-
         except Exception as error:
-            logger.error(f"<light-yellow>{self.session_name}</light-yellow> | Unknown error during Authorization: "
-                         f"{error}")
+            logger.error(f"<light-yellow>{self.session_name}</light-yellow> | Unknown error during Authorization: {error}")
             await asyncio.sleep(delay=3)
 
 async def run_tapper(tg_client: Client, proxy: str | None):

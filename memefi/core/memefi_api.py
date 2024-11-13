@@ -3,7 +3,7 @@ from random import randint
 from aiohttp import ClientSession
 from asyncio import sleep
 
-from memefi.exceptions import InvalidProtocol
+from exceptions import InvalidProtocol
 from memefi.utils.boosts import FreeBoostType, UpgradableBoostType
 from memefi.utils.graphql import OperationName, Query
 from memefi.utils.logger import SessionLogger

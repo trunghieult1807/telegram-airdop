@@ -14,7 +14,7 @@ from tzlocal import get_localzone
 import time as time_module
 
 from notpixel.utils import logger
-from exceptions import InvalidSession, ApiChangeDetected
+from exceptions import InvalidSession
 from .headers import headers
 from random import randint
 import os
@@ -25,13 +25,14 @@ from notpixel.core.image_checker import get_cords_and_color, template_to_join, i
 import urllib3
 import json
 
+from core.config import Config
 from notpixel.utils.detector import detector
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 API_GAME_ENDPOINT = "https://notpx.app/api/v1"
 class Tapper:
-    def __init__(self, query: str, session_name, multi_thread, proxy: str | None):
+    def __init__(self, query: str, session_name, proxy: str | None):
         self.query = query
         self.session_name = session_name
         self.first_name = ''
@@ -48,7 +49,6 @@ class Tapper:
                            "#E4ABFF", "#FF99AA", "#FFB470", "#FFFFFF", "#BE0039", "#FF9600", "#00CC78", "#009EAA",
                            "#3690EA", "#6A5CFF", "#B44AC0", "#FF3881", "#9C6926", "#6D001A", "#BF4300", "#00A368",
                            "#00756F", "#2450A4", "#493AC1", "#811E9F", "#A00357", "#6D482F"]
-        self.multi_thread = multi_thread
         self.my_ref = "f7411517918"
         self.clb_ref = "f7411517918"
         self.socket = None
@@ -78,12 +78,6 @@ class Tapper:
         self.proxy = proxy
         self.access_token_created_time = 0
         self.token_live_time = randint(1000, 1500)
-        self.http_client = self.create_http_client()
-        self.session = cloudscraper.create_scraper()
-    
-    def __del__(self):
-        self.http_client.close()
-        self.session.close()
     
     def create_http_client(self):
         proxy_conn = ProxyConnector().from_url(self.proxy) if self.proxy else None
@@ -521,7 +515,7 @@ class Tapper:
     async def get_tg_web_data(self) -> str:
         return self.query
 
-    async def run_one_time(self):
+    async def __process(self, session: aiohttp.ClientSession):
         detector.check_api_and_raise()
         
         if time_module.time() - self.access_token_created_time >= self.token_live_time:
@@ -543,9 +537,8 @@ class Tapper:
             time_to_sleep = (end_time - current_time).total_seconds()
             logger.info(f"{self.session_name} | Sleeping for {time_to_sleep} seconds until {end_time}.")
             await asyncio.sleep(time_to_sleep)
-
-        elif self.login(self.session):
-            user = self.get_user_data(self.session)
+        elif self.login(session):
+            user = self.get_user_data(session)
 
             if user:
                 self.maxtime = user['maxMiningTime']
@@ -558,7 +551,7 @@ class Tapper:
                     f"{self.session_name} | Pixel Balance: <light-blue>{int(user['userBalance'])}</light-blue> | Pixel available to paint: <cyan>{user['charges']}</cyan> | User league: <yellow>{user_league}</yellow>")
 
                 if settings.USE_PUMPKIN_BOMBS:
-                    await self.use_pumpkin(self.session)
+                    await self.use_pumpkin(session)
 
                 if user['charges'] > 0:
                     if settings.USE_RANDOM_TEMPLATES:
@@ -570,26 +563,26 @@ class Tapper:
                         logger.info(f"{self.session_name} | Using the new painting method.")
                         reachable()
                         inform(self.user_id, self.balance)
-                        await self.paint(self.session)
+                        await self.paint(session)
                     else:
-                        curr_template = await self.get_template(self.session)
+                        curr_template = await self.get_template(session)
 
                         await asyncio.sleep(randint(2, 5))
                         subcribed = True
                         if not curr_template or curr_template.get('id', 0) != self.template_id:
-                            subcribed = await self.subscribe_template(self.session, self.template_id)
+                            subcribed = await self.subscribe_template(session, self.template_id)
                             if subcribed:
                                 logger.success(
                                     f"{self.session_name} | <green>Successfully subscribed to the template | ID: <cyan>{self.template_id}</cyan></green>")
                             await asyncio.sleep(random.randint(2, 5))
 
                         if subcribed:
-                            template_info = await self.get_template_info(self.session)
+                            template_info = await self.get_template_info(session)
                             if template_info:
                                 url = template_info['url']
                                 img_headers = dict()
                                 img_headers['Host'] = 'static.notpx.app'
-                                template_image = await self.get_image(self.session, url, image_headers=img_headers)
+                                template_image = await self.get_image(session, url, image_headers=img_headers)
                                 self.default_template = {
                                     'x': template_info['x'],
                                     'y': template_info['y'],
@@ -600,112 +593,116 @@ class Tapper:
                             image_url = 'https://app.notpx.app/assets/halloween-DrqzeAH-.png'
                             image_headers = headers.copy()
                             image_headers['Referer'] = 'https://app.notpx.app/'
-                            self.default_template['image'] = await self.get_image(self.session, image_url, image_headers=image_headers)
+                            self.default_template['image'] = await self.get_image(session, image_url, image_headers=image_headers)
                             await asyncio.sleep(random.randint(2, 5))
 
                         logger.info(f"{self.session_name} | Using the old painting method.")
-                        await self.repaintV5(self.session, template_info=self.default_template)
+                        await self.repaintV5(session, template_info=self.default_template)
                         await asyncio.sleep(random.randint(2, 5))
 
                 r = random.uniform(2, 4)
                 if float(self.fromstart) >= self.maxtime / r:
-                    self.claimpx(self.session)
+                    self.claimpx(session)
                     await asyncio.sleep(random.uniform(2, 5))
                 if settings.AUTO_TASK:
-                    user_data = self.get_user_data(self.session)
+                    user_data = self.get_user_data(session)
                     self.completed_task = list(user_data['tasks'].keys())
                     if "nikolai" not in self.completed_task:
-                        res = self.session.get(f"{API_GAME_ENDPOINT}/mining/task/check/nikolai", headers=headers)
+                        res = session.get(f"{API_GAME_ENDPOINT}/mining/task/check/nikolai", headers=headers)
                         if res.status_code == 200 and res.json()['nikolai']:
                             logger.success(f"{self.session_name} | <green>Successfully complete task <cyan>nikolai</cyan>!</green>")
                     if "pumpkin" not in self.completed_task :
-                        res = self.session.get(f"{API_GAME_ENDPOINT}/mining/task/check/pumpkin", headers=headers)
+                        res = session.get(f"{API_GAME_ENDPOINT}/mining/task/check/pumpkin", headers=headers)
                         if res.status_code == 200 and res.json()['pumpkin']:
                             logger.success(f"{self.session_name} | <green>Successfully claimed pumpkin!</green>")
 
                     if "x:notpixel" not in self.completed_task:
-                        res = self.session.get(f"{API_GAME_ENDPOINT}/mining/task/check/x?name=notpixel", headers=headers)
+                        res = session.get(f"{API_GAME_ENDPOINT}/mining/task/check/x?name=notpixel", headers=headers)
                         if res.status_code == 200 and res.json()['x:notpixel']:
                             logger.success("<green>Task Not pixel on x completed!</green>")
 
                     if "x:notcoin" not in self.completed_task:
-                        res = self.session.get(f"{API_GAME_ENDPOINT}/mining/task/check/x?name=notcoin", headers=headers)
+                        res = session.get(f"{API_GAME_ENDPOINT}/mining/task/check/x?name=notcoin", headers=headers)
                         if res.status_code == 200 and res.json()['x:notcoin']:
                             logger.success("<green>Task Not coin on x completed!</green>")
 
                     if "paint20pixels" not in self.completed_task:
-                        res = self.session.get(f"{API_GAME_ENDPOINT}/mining/task/check/paint20pixels", headers=headers)
+                        res = session.get(f"{API_GAME_ENDPOINT}/mining/task/check/paint20pixels", headers=headers)
                         if res.status_code == 200 and res.json()['paint20pixels']:
                             logger.success("<green>Task paint 20 pixels completed!</green>")
 
                     if repaints >= 2049 and "leagueBonusPlatinum" not in self.completed_task:
-                        res = self.session.get(f"{API_GAME_ENDPOINT}/mining/task/check/leagueBonusPlatinum", headers=headers)
+                        res = session.get(f"{API_GAME_ENDPOINT}/mining/task/check/leagueBonusPlatinum", headers=headers)
                         if res.status_code == 200 and res.json()['leagueBonusPlatinum']:
-                            logger.success(
-                                f"{self.session_name} | <green>Upgraded to Plantium league!</green>")
+                            logger.success(f"{self.session_name} | <green>Upgraded to Plantium league!</green>")
                     if repaints >= 129 and "leagueBonusGold" not in self.completed_task:
-                        res = self.session.get(f"{API_GAME_ENDPOINT}/mining/task/check/leagueBonusGold", headers=headers)
+                        res = session.get(f"{API_GAME_ENDPOINT}/mining/task/check/leagueBonusGold", headers=headers)
                         if res.status_code == 200 and res.json()['leagueBonusGold']:
                             logger.success(f"{self.session_name} | <green>Upgraded to Gold league!</green>")
                     if repaints >= 9 and "leagueBonusSilver" not in self.completed_task:
-                        res = self.session.get(f"{API_GAME_ENDPOINT}/mining/task/check/leagueBonusSilver", headers=headers)
+                        res = session.get(f"{API_GAME_ENDPOINT}/mining/task/check/leagueBonusSilver", headers=headers)
                         if res.status_code == 200 and res.json()['leagueBonusSilver']:
                             logger.success(f"{self.session_name} | <green>Upgraded to Silver league!</green>")
 
                     if "leagueBonusBronze" not in self.completed_task:
-                        res = self.session.get(f"{API_GAME_ENDPOINT}/mining/task/check/leagueBonusBronze", headers=headers)
+                        res = session.get(f"{API_GAME_ENDPOINT}/mining/task/check/leagueBonusBronze", headers=headers)
                         if res.status_code == 200 and res.json()['leagueBonusBronze']:
                             logger.success(f"{self.session_name} | <green>Upgraded to Bronze league!</green>")
 
                 if settings.AUTO_UPGRADE_PAINT_REWARD:
                     if self.is_max_lvl['paintReward'] is False:
-                        await self.auto_upgrade_paint(self.session)
+                        await self.auto_upgrade_paint(session)
                 if settings.AUTO_UPGRADE_RECHARGE_SPEED:
                     if self.is_max_lvl['reChargeSpeed'] is False:
-                        await self.auto_upgrade_recharge_speed(self.session)
+                        await self.auto_upgrade_recharge_speed(session)
                 if settings.AUTO_UPGRADE_RECHARGE_ENERGY:
                     if self.is_max_lvl['energyLimit'] is False:
-                        await self.auto_upgrade_energy_limit(self.session)
+                        await self.auto_upgrade_energy_limit(session)
             else:
                 logger.warning(f"{self.session_name} | <yellow>Failed to get user data!</yellow>")
 
-    async def run(self) -> None:
-        if not self.multi_thread:
-            self.http_client = self.create_http_client()
-            self.session = cloudscraper.create_scraper()
-            
-        if self.proxy:
-            proxy_check = await self.check_proxy(http_client=self.http_client, proxy=self.proxy)
-            if proxy_check:
-                proxy_type = self.proxy.split(':')[0]
-                proxies = {
-                    proxy_type: self.proxy
-                }
-                self.session.proxies.update(proxies)
-                logger.info(f"{self.session_name} | bind with proxy ip: {self.proxy}")
+    async def run_one_time(self) -> None:
+        with cloudscraper.create_scraper() as session:
+            async with self.create_http_client() as http_client:
+                if self.proxy:
+                    proxy_check = await self.check_proxy(http_client=http_client, proxy=self.proxy)
+                    if proxy_check:
+                        proxy_type = self.proxy.split(':')[0]
+                        proxies = {
+                            proxy_type: self.proxy
+                        }
+                        session.proxies.update(proxies)
+                        logger.info(f"{self.session_name} | bind with proxy ip: {self.proxy}")
 
-        while True:
             try:
-                await self.run_one_time()
+                await self.__process(session=session)
+            except Exception as error:
+                logger.error(f"{self.session_name} | Unknown error: {error}")
 
-                if self.multi_thread:
+    async def run(self) -> None:
+        with cloudscraper.create_scraper() as session:
+            async with self.create_http_client() as http_client:
+                if self.proxy:
+                    proxy_check = await self.check_proxy(http_client=http_client, proxy=self.proxy)
+                    if proxy_check:
+                        proxy_type = self.proxy.split(':')[0]
+                        proxies = {
+                            proxy_type: self.proxy
+                        }
+                        session.proxies.update(proxies)
+                        logger.info(f"{self.session_name} | bind with proxy ip: {self.proxy}")
+
+            while True:
+                try:
+                    await self.__process(session=session)
+
                     sleep_ = randint(settings.SLEEP_TIME_BETWEEN_EACH_ROUND[0],
-                                     settings.SLEEP_TIME_BETWEEN_EACH_ROUND[1])
+                                    settings.SLEEP_TIME_BETWEEN_EACH_ROUND[1])
                     logger.info(f"{self.session_name} | Sleep {sleep_}s...")
                     await asyncio.sleep(sleep_)
-                else:
-                    await self.http_client.close()
-                    self.session.close()
-                    break
-            except InvalidSession as error:
-                raise error
-            except ApiChangeDetected as error:
-                logger.error(error)
-                await asyncio.sleep(600)
-            except Exception as error:
-                traceback.print_exc()
-                logger.error(f"{self.session_name} | Unknown error: {error}")
-                await asyncio.sleep(delay=randint(60, 120))
+                except Exception as error:
+                    logger.error(f"{self.session_name} | Unknown error: {error}")
+                    await asyncio.sleep(delay=randint(60, 120))
 
 
 async def run_query_tapper(query: str, name: str, proxy: str | None):
@@ -713,27 +710,6 @@ async def run_query_tapper(query: str, name: str, proxy: str | None):
         sleep_ = randint(1, 15)
         logger.info(f" start after {sleep_}s")
         await asyncio.sleep(sleep_)
-        await Tapper(query=query, session_name=name, multi_thread=True, proxy=proxy).run()
+        await Tapper(query=query, session_name=name, proxy=proxy).run()
     except InvalidSession:
         logger.error(f"Invalid Query: {query}")
-
-async def run_query_tapper1(querys: list[str], proxies):
-    proxies_cycle = cycle(proxies) if proxies else None
-    name = "Account"
-
-    while True:
-        i = 0
-        for query in querys:
-            try:
-                proxy = next(proxies_cycle) if proxies_cycle else None
-                await Tapper(query=query,session_name=f"{name} {i}", multi_thread=False, proxy=proxy).run()
-            except InvalidSession:
-                logger.error(f"Invalid Query: {query}")
-
-            sleep_ = randint(settings.DELAY_EACH_ACCOUNT[0], settings.DELAY_EACH_ACCOUNT[1])
-            logger.info(f"Sleep {sleep_}s...")
-            await asyncio.sleep(sleep_)
-
-        sleep_ = randint(settings.SLEEP_TIME_BETWEEN_EACH_ROUND[0], settings.SLEEP_TIME_BETWEEN_EACH_ROUND[1])
-        logger.info(f"<red>Sleep {sleep_}s...</red>")
-        await asyncio.sleep(sleep_)
