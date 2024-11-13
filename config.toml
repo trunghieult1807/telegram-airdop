@@ -1,5 +1,6 @@
 apps = ['blum', 'coinsweeper', 'notpixel', 'okxracer', 'seed']
 sessions = ['test', 'mrluas6']
+multi_thread = true
 
 [test]
 skip_app = []
