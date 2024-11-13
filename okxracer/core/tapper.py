@@ -19,13 +19,12 @@ from random import randint, choices
 
 
 class Tapper:
-    def __init__(self, tg_client: Client, multi_thread: bool | None, proxy: str | None):
+    def __init__(self, tg_client: Client, proxy: str | None):
         self.tg_client = tg_client
         self.session_name = tg_client.name
         self.first_name = ''
         self.last_name = ''
         self.user_id = ''
-        self.multi_thread = multi_thread
         self.proxy = proxy
         self.access_token_created_time = 0
         self.token_live_time = randint(3500, 3600)
@@ -110,9 +109,6 @@ class Tapper:
                 await self.tg_client.disconnect()
 
             return f"query_id={query_id}&user={user}&auth_date={auth_date}&hash={hash_}"
-
-        except InvalidSession as error:
-            raise error
 
         except Exception as error:
             logger.error(f"<light-yellow>{self.session_name}</light-yellow> | Unknown error during Authorization: "
@@ -275,34 +271,32 @@ class Tapper:
             logger.error(f"{self.session_name} | Unknown error when making assess: {error}")
             await asyncio.sleep(delay=3)
 
-    async def run_one_time(self, http_client: aiohttp.ClientSession = None):
-        self.http_client = self.create_http_client() if http_client is None else http_client
-        
+    async def __process(self, http_client: aiohttp.ClientSession):
         if time() - self.access_token_created_time >= self.token_live_time:
             tg_web_data = await self.get_tg_web_data(proxy=self.proxy)
-            self.http_client.headers["X-Telegram-Init-Data"] = tg_web_data
-            user_info = await self.get_info_data(http_client=self.http_client)
+            http_client.headers["X-Telegram-Init-Data"] = tg_web_data
+            user_info = await self.get_info_data(http_client=http_client)
             self.access_token_created_time = time()
             self.token_live_time = randint(3500, 3600)
 
             balance = user_info['data']['balancePoints']
             logger.info(f"{self.session_name} | Balance: <e>{balance}</e>")
-            await self.processing_tasks(http_client=self.http_client)
+            await self.processing_tasks(http_client=http_client)
             await asyncio.sleep(delay=randint(10, 15))
 
-        user_info = await self.get_info_data(http_client=self.http_client)
+        user_info = await self.get_info_data(http_client=http_client)
         chances = user_info['data']['numChances']
         refresh_time = user_info['data']['secondToRefresh']
         balance = user_info['data']['balancePoints']
 
         if settings.AUTO_BOOST:
-            boosts = await self.get_boosts(http_client=self.http_client)
+            boosts = await self.get_boosts(http_client=http_client)
             for boost in boosts:
                 boost_name = boost['context']['name']
                 boost_id = boost['id']
                 if (boost_id == 2 or boost_id == 3) and settings.BOOSTERS[boost_name]:
                     if self.can_buy_boost(balance, boost):
-                        result = await self.buy_boost(http_client=self.http_client, boost_id=boost_id, boost_name=boost_name)
+                        result = await self.buy_boost(http_client=http_client, boost_id=boost_id, boost_name=boost_name)
                         if result:
                             logger.info(f"{self.session_name} | <lc>{boost_name}</lc> upgraded to "
                                         f"<m>{boost['curStage'] + 1}</m> lvl")
@@ -314,7 +308,7 @@ class Tapper:
 
         sleep_time = randint(settings.SLEEP_TIME[0], settings.SLEEP_TIME[1])
         for _ in range(chances):
-            response_data = await self.make_assess(http_client=self.http_client)
+            response_data = await self.make_assess(http_client=http_client)
             if response_data is None:
                 self.token_live_time = 0
                 await asyncio.sleep(delay=sleep_time)
@@ -327,10 +321,10 @@ class Tapper:
                 if response_data.get('numChance') == 0 and settings.AUTO_BOOST:
                     boost = next((boost for boost in boosts if boost['id'] == 1), None)
                     if self.can_buy_boost(balance, boost):
-                        if await self.buy_boost(http_client=self.http_client, boost_id=boost['id'],
+                        if await self.buy_boost(http_client=http_client, boost_id=boost['id'],
                                                 boost_name=boost['context']['name']):
                             await asyncio.sleep(randint(1, 3))
-                            boosts = await self.get_boosts(http_client=self.http_client)
+                            boosts = await self.get_boosts(http_client=http_client)
                             sleep_time = randint(1, 3)
                             continue
                     else:
@@ -339,23 +333,27 @@ class Tapper:
             
         logger.info(f"{self.session_name} | Sleep <y>{sleep_time}</y> seconds")
         await asyncio.sleep(delay=sleep_time)
-        
-        if http_client is None:
-            await self.http_client.close()
 
-    async def run(self) -> None:
-        http_client = self.create_http_client()
-        if self.proxy:
-            await self.check_proxy(http_client=http_client, proxy=self.proxy)
-
-        while True:
+    async def run_one_time(self) -> None:
+        async with self.create_http_client() as http_client:
             try:
-                await self.run_one_time(http_client=http_client)
-            except InvalidSession as error:
-                raise error
+                if self.proxy:
+                    await self.check_proxy(http_client=http_client, proxy=self.proxy)
+                await self.__process(http_client=http_client)
             except Exception as error:
                 logger.error(f"{self.session_name} | Unknown error: {error}")
-                await asyncio.sleep(delay=randint(60, 120))
+
+    async def run(self) -> None:
+        async with self.create_http_client() as http_client:
+            if self.proxy:
+                await self.check_proxy(http_client=http_client, proxy=self.proxy)
+
+            while True:
+                try:
+                    await self.__process(http_client=http_client)
+                except Exception as error:
+                    logger.error(f"{self.session_name} | Unknown error: {error}")
+                    await asyncio.sleep(delay=randint(60, 120))
 
 
 async def run_tapper(tg_client: Client, proxy: str | None):

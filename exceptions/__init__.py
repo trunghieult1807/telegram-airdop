@@ -1,4 +1,7 @@
-class InvalidSession(Exception):
+class InvalidSession(BaseException):
+    ...
+
+class InvalidProtocol(BaseException):
     ...
 
 class ApiChangeDetected(Exception):

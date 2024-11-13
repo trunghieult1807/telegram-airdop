@@ -27,4 +27,4 @@ class BotConfig(BaseSettings):
     def get_session_run_apps(self, session: str) -> list[str]:
         return [app for app in self.apps if session not in self.sessions_config or app not in self.sessions_config[session].skip_app]
 
-Config = BotConfig.parse_toml('config.toml')
+Config = BotConfig.parse_toml('config.local.toml')

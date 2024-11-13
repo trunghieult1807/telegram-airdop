@@ -10,7 +10,6 @@ from better_proxy import Proxy
 from seed.config import settings
 
 from seed.utils import logger
-from exceptions import InvalidSession, ApiChangeDetected
 from .headers import headers
 
 from random import randint, uniform
@@ -60,7 +59,6 @@ class Tapper:
         self.worm_in_inv_copy = {"common": 0, "uncommon": 0, "rare": 0, "epic": 0, "legendary": 0}
         self.my_ref = '5268227136'
         self.proxy = proxy
-        self.http_client = self.create_http_client()
         self.access_token_created_time = 0
         self.token_live_time = randint(3500, 3600)
         self.can_run = True
@@ -599,25 +597,25 @@ class Tapper:
         proxy_conn = ProxyConnector().from_url(self.proxy) if self.proxy else None
         return CloudflareScraper(headers=headers, connector=proxy_conn)
     
-    async def run_one_time(self) -> None:
-        # detector.check_api_and_raise()
+    async def __process(self, http_client: aiohttp.ClientSession) -> None:
+        detector.check_api_and_raise()
         
         if time.time() - self.access_token_created_time >= self.token_live_time:
             tg_web_data = await self.get_tg_web_data()
             headers['telegram-data'] = tg_web_data
-            self.http_client.headers["telegram-data"] = tg_web_data
+            http_client.headers["telegram-data"] = tg_web_data
             self.access_token_created_time = time.time()
             self.token_live_time = randint(3500, 3600)
             await asyncio.sleep(delay=randint(10, 15))
 
-        not_new_user = await self.check_new_user(self.http_client)
+        not_new_user = await self.check_new_user(http_client)
         if not_new_user is False:
             logger.info(f"{self.session_name} | Setting up new account...")
-            await self.setup_profile(self.http_client)
-        await self.fetch_profile(self.http_client)
+            await self.setup_profile(http_client)
+        await self.fetch_profile(http_client)
         
         if settings.AUTO_START_HUNT:
-            bird_data = await self.get_bird_info(self.http_client)
+            bird_data = await self.get_bird_info(http_client)
             if bird_data is None:
                 logger.info(f"{self.session_name} | Can't get bird data...")
             elif bird_data['owner_id'] != self.user_id:
@@ -639,12 +637,12 @@ class Tapper:
                     logger.info(f"{self.session_name} | Bird currently hunting...")
                 else:
                     logger.info(f"{self.session_name} | <white>Hunt completed, claiming reward...</white>")
-                    await self.claim_hunt_reward(bird_data['id'], self.http_client)
+                    await self.claim_hunt_reward(bird_data['id'], http_client)
             else:
                 condition = True
                 if bird_data['happiness_level'] == 0:
                     logger.info(f"{self.session_name} | Bird is not happy, attemping to make bird happy...")
-                    check = await self.make_bird_happy(bird_data['id'], self.http_client)
+                    check = await self.make_bird_happy(bird_data['id'], http_client)
                     if check:
                         logger.success(f"{self.session_name} | <green>Successfully make bird happy!</green>")
                     else:
@@ -652,7 +650,7 @@ class Tapper:
                         condition = False
                 if bird_data['energy_level'] == 0:
                     logger.info(f"{self.session_name} | Bird is hungry, attemping to feed bird...")
-                    worms = await self.get_worm_data(self.http_client)
+                    worms = await self.get_worm_data(http_client)
                     if worms is None:
                         condition = False
                         logger.info(f"{self.session_name} | Failed to fetch worm data")
@@ -678,26 +676,26 @@ class Tapper:
                                     energy -= 4
                                     if energy <= 1:
                                         break
-                        await self.feed_bird(bird_data['id'], wormss, self.http_client)
+                        await self.feed_bird(bird_data['id'], wormss, http_client)
                         if energy > 1:
                             condition = False
 
                 if condition:
-                    await self.start_hunt(bird_data['id'], self.http_client)
+                    await self.start_hunt(bird_data['id'], http_client)
 
         if settings.AUTO_UPGRADE_STORAGE:
-            await self.upgrade_storage(self.http_client)
+            await self.upgrade_storage(http_client)
             await asyncio.sleep(1)
         if settings.AUTO_UPGRADE_MINING:
-            await self.upgrade_mining(self.http_client)
+            await self.upgrade_mining(http_client)
             await asyncio.sleep(1)
         if settings.AUTO_UPGRADE_HOLY:
-            await self.upgrade_holy(self.http_client)
+            await self.upgrade_holy(http_client)
             await asyncio.sleep(1)
 
-        check_balance = await self.verify_balance(self.http_client)
+        check_balance = await self.verify_balance(http_client)
         if check_balance:
-            response = await self.http_client.post(api_claim)
+            response = await http_client.post(api_claim)
             if response.status == 200:
                 logger.success(f"{self.session_name} | <green> Claim successful </green>")
             elif response.status == 400:
@@ -705,12 +703,12 @@ class Tapper:
             else:
                 logger.error(f"{self.session_name} | <red>An error occurred, status code: {response.status}</red>")
 
-            await self.perform_daily_checkin(self.http_client)
-            await self.capture_worm(self.http_client)
+            await self.perform_daily_checkin(http_client)
+            await self.capture_worm(http_client)
         if settings.AUTO_SELL_WORMS:
             logger.info(f"{self.session_name} | Fetching worms data to put it on sale...")
-            worms = await self.get_worms(self.http_client)
-            worms_on_sell = await self.get_sale_data(self.http_client)
+            worms = await self.get_worms(http_client)
+            worms_on_sell = await self.get_sale_data(http_client)
             logger.info(f"{self.session_name} | Worms on sale now: ")
             for worm in worms_on_sell:
                 logger.info(f"{self.session_name} | Total <cyan>{worm}</cyan> on sale: <yellow>{worms_on_sell[worm]}</yellow>")
@@ -723,39 +721,43 @@ class Tapper:
                 elif settings.QUANTITY_TO_KEEP[worm['type']]['quantity_to_keep'] < self.worm_in_inv[
                     worm['type']]:
                     if settings.QUANTITY_TO_KEEP[worm['type']]['sale_price'] == 0:
-                        price_to_sell = await self.get_price(worm['type'], self.http_client)
+                        price_to_sell = await self.get_price(worm['type'], http_client)
 
                     else:
                         price_to_sell = settings.QUANTITY_TO_KEEP[worm['type']]['sale_price'] * (10 ** 9)
-                    await self.sell_worm(worm['id'], price_to_sell, worm['type'], self.http_client)
+                    await self.sell_worm(worm['id'], price_to_sell, worm['type'], http_client)
                     self.worm_in_inv[worm['type']] -= 1
 
             self.refresh_data()
         if settings.AUTO_CLEAR_TASKS:
-            await self.fetch_tasks(self.http_client)
+            await self.fetch_tasks(http_client)
 
         if settings.AUTO_SPIN:
-            await self.claim_streak_rewards(self.http_client)
+            await self.claim_streak_rewards(http_client)
             await asyncio.sleep(randint(1,4))
-            await self.play_game(self.http_client)
+            await self.play_game(http_client)
+    
+    async def run_one_time(self) -> None:
+        async with self.create_http_client() as http_client:
+            try:
+                if self.proxy:
+                    await self.check_proxy(http_client=http_client, proxy=self.proxy)
+                    
+                await self.__process(http_client=http_client)
+            except Exception as error:
+                logger.error(f"{self.session_name} | Unknown error: {error}")
 
     async def run(self) -> None:
-        if self.proxy:
-            await self.check_proxy(http_client=self.http_client, proxy=self.proxy)
+        async with self.create_http_client() as http_client:
+            if self.proxy:
+                await self.check_proxy(http_client=http_client, proxy=self.proxy)
 
-        while True:
-            try:
-                await self.run_one_time()
-                
-                delay_time = randint(2800, 3600)
-                logger.info(f"{self.session_name} | Completed {self.session_name}, waiting {delay_time} seconds...")
-                await asyncio.sleep(delay=delay_time)
-            except InvalidSession as error:
-                raise error
-            except ApiChangeDetected as error:
-                logger.error(error)
-                await asyncio.sleep(600)
-            except Exception as error:
-                traceback.print_exc()
-                logger.error(f"{self.session_name} | Unknown error: {error}")
-                await asyncio.sleep(delay=randint(60, 120))
+            while True:
+                try:
+                    await self.__process(http_client=http_client)
+                    delay_time = randint(2800, 3600)
+                    logger.info(f"{self.session_name} | Completed {self.session_name}, waiting {delay_time} seconds...")
+                    await asyncio.sleep(delay=delay_time)
+                except Exception as error:
+                    logger.error(f"{self.session_name} | Unknown error: {error}")
+                    await asyncio.sleep(delay=randint(60, 120))
