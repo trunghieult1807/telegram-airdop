@@ -1,9 +1,6 @@
 apps = ['blum', 'coinsweeper', 'notpixel', 'okxracer', 'seed']
-sessions = ['test', 'mrluas6']
+sessions = ['your_session_name']
 multi_thread = true
 
-[test]
+[your_session_name]
 skip_app = []
-
-[mrluas6]
-skip_app = ['blum', 'coinsweeper', 'notpixel', 'okxracer']
