@@ -1,4 +1,5 @@
 from typing import Tuple, Type
+from pydantic import BaseModel, Field
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -8,12 +9,18 @@ from pydantic_settings import (
 
 TOML_FILE = ['config.toml', 'config.local.toml']
 
+
+class SessionConfig(BaseModel):
+    apps: set[str] = None
+    skip_app: set[str] = {}
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(toml_file=TOML_FILE, extra='allow')
     
     apps: set[str] = []
     sessions: set[str] = []
     multi_thread: bool = True
+    sessions_config: dict[str, SessionConfig] = Field(default_factory=dict)
     
     @classmethod
     def settings_customise_sources(
@@ -26,11 +33,21 @@ class Settings(BaseSettings):
     ) -> Tuple[PydanticBaseSettingsSource, ...]:
         return (TomlConfigSettingsSource(settings_cls),)
     
-    def get_session_run_apps(self, session: str) -> list[str]:
-        session_config = self.dict().get(session)
-        if session_config is None:
-            return list(self.apps)
+    def __init__(self, **data):
+        super().__init__(**data)
+        self.sessions_config = self.build_sessions_config()
         
-        return [app for app in self.apps if session_config is None or app not in session_config['skip_app']]
+    def build_sessions_config(self):
+        config_dict = self.dict()
+        return { session: SessionConfig(**config_dict.get(session)) for session in self.sessions }
+    
+    def get_session_run_apps(self, session: str) -> list[str]:
+        if session not in self.sessions:
+            return []
+        
+        session_config = self.sessions_config.get(session)
+        apps = self.apps if session_config.apps is None else session_config.apps
+        
+        return list(apps.difference(session_config.skip_app))
 
 Config = Settings()
