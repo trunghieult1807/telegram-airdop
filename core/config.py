@@ -1,30 +1,36 @@
-import tomllib
-from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings
+from typing import Tuple, Type
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+    TomlConfigSettingsSource,
+)
 
-class SessionConfig(BaseModel):
-    skip_app: set[str] = {}
+TOML_FILE = ['config.toml', 'config.local.toml']
 
-class BotConfig(BaseSettings):
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(toml_file=TOML_FILE, extra='allow')
+    
     apps: set[str] = []
     sessions: set[str] = []
-    sessions_config: dict[str, SessionConfig] = Field(default_factory=dict)
     multi_thread: bool = True
-
+    
     @classmethod
-    def parse_toml(cls, path: str):
-        with open(path, 'rb') as f:
-            config_data = tomllib.load(f)
-        config_data['sessions_config'] = {
-            session_name: SessionConfig(**config_data[session_name])
-            for session_name in config_data.get('sessions', [])
-            if session_name in config_data
-        }
-        selected_fields = { 'apps', 'sessions', 'sessions_config', 'multi_thread' }
-        config_data = { k: v for k, v in config_data.items() if k in selected_fields }
-        return cls(**config_data)
+    def settings_customise_sources(
+        cls,
+        settings_cls: Type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> Tuple[PydanticBaseSettingsSource, ...]:
+        return (TomlConfigSettingsSource(settings_cls),)
     
     def get_session_run_apps(self, session: str) -> list[str]:
-        return [app for app in self.apps if session not in self.sessions_config or app not in self.sessions_config[session].skip_app]
+        session_config = self.dict().get(session)
+        if session_config is None:
+            return list(self.apps)
+        
+        return [app for app in self.apps if session_config is None or app not in session_config['skip_app']]
 
-Config = BotConfig.parse_toml('config.local.toml')
+Config = Settings()

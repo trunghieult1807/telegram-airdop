@@ -8,3 +8,4 @@ api_data/
 config.json
 user_agents.json
 .vscode/
+*.local.toml
