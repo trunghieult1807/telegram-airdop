@@ -19,7 +19,7 @@ from typing import Callable
 import functools
 from tzlocal import get_localzone
 from tomarket.config import settings
-from exceptions import InvalidSession, ApiChangeDetected
+from exceptions import InvalidSession
 from tomarket.utils import logger
 from .headers import headers
 from tomarket.utils.detector import detector
@@ -428,9 +428,6 @@ class Tapper:
                         proxy_conn.close()
             except InvalidSession as error:
                 raise error
-            except ApiChangeDetected as error:
-                logger.error(error)
-                await asyncio.sleep(600)
             except Exception as error:
                 logger.error(f"{self.session_name} | Unknown error: {error}")
                 await asyncio.sleep(delay=3)

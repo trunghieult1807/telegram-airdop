@@ -32,8 +32,8 @@ API_GAME_ENDPOINT = "https://notpx.app/api/v1"
 
 
 class Tapper(QueryTapper):
-    def __init__(self, tg_client: Client, multi_thread: bool, proxy: str | None):
-        super().__init__(query='', session_name=tg_client.name, multi_thread=multi_thread, proxy=proxy)
+    def __init__(self, tg_client: Client, proxy: str | None):
+        super().__init__(query='', session_name=tg_client.name, proxy=proxy)
         self.tg_client = tg_client
 
     async def get_tg_web_data(self) -> str:
@@ -99,9 +99,6 @@ class Tapper(QueryTapper):
 
             return tg_web_data
 
-        except InvalidSession as error:
-            raise error
-
         except Exception as error:
             logger.error(f"<light-yellow>{self.session_name}</light-yellow> | Unknown error during Authorization: "
                          f"{error}")
@@ -113,25 +110,6 @@ async def run_tapper(tg_client: Client, proxy: str | None):
         sleep_ = randint(1, 15)
         logger.info(f"{tg_client.name} | start after {sleep_}s")
         await asyncio.sleep(sleep_)
-        await Tapper(tg_client=tg_client, multi_thread=True, proxy=proxy).run()
+        await Tapper(tg_client=tg_client, proxy=proxy).run()
     except InvalidSession:
         logger.error(f"{tg_client.name} | Invalid Session")
-
-
-async def run_tapper1(tg_clients: list[Client], proxies):
-    proxies_cycle = cycle(proxies) if proxies else None
-    while True:
-        for tg_client in tg_clients:
-            try:
-                proxy = next(proxies_cycle) if proxies_cycle else None
-                await Tapper(tg_client=tg_client, multi_thread=False, proxy=proxy).run()
-            except InvalidSession:
-                logger.error(f"{tg_client.name} | Invalid Session")
-
-            sleep_ = randint(settings.DELAY_EACH_ACCOUNT[0], settings.DELAY_EACH_ACCOUNT[1])
-            logger.info(f"Sleep {sleep_}s...")
-            await asyncio.sleep(sleep_)
-
-        sleep_ = randint(settings.SLEEP_TIME_BETWEEN_EACH_ROUND[0], settings.SLEEP_TIME_BETWEEN_EACH_ROUND[1])
-        logger.info(f"<red>Sleep {sleep_}s...</red>")
-        await asyncio.sleep(sleep_)

@@ -1,8 +1,9 @@
 apps = ['blum', 'coinsweeper', 'notpixel', 'okxracer', 'seed']
-sessions = ['test', 'mrluas6']
+sessions = ['your_session_name']
+multi_thread = true
 
-[test]
-skip_app = []
-
-[mrluas6]
-skip_app = ['blum', 'coinsweeper', 'notpixel', 'okxracer']
+# This session for each session to override the global apps list
+[your_session_name]
+apps = ['game_to_play']       # Ex: ['blum', 'notpixel', 'okxracer', 'seed']
+skip_app = ['game_to_skip']   # Ex: ['seed']
+# Final result: ['blum', 'notpixel', 'okxracer']
