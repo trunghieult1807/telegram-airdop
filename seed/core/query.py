@@ -71,8 +71,10 @@ class Tapper:
             "Learn Blockchain in 3 mins": "Blockchain",
             "News affecting the BTC price": "BTCTOTHEMOON",
             "On-chain vs Off-chain #8": "TRANSACTION",
-            "#9 CEX vs DEX": "OKXEED"
+            "On-chain vs Off-chain #8": "TRANSACTION",
+            "#10 Bullish and Bearish": "BULLRUN"
         }
+        self.skip_task = ["Boost SEED channel 3 times", "Boost SEED channel"]
         headers['User-Agent'] = user_agent
 
     async def check_proxy(self, http_client: aiohttp.ClientSession, proxy: Proxy) -> None:
@@ -212,9 +214,10 @@ class Tapper:
         response = await http_client.get(f'{api_endpoint}api/v1/tasks/progresses')
         tasks = await response.json()
         for task in tasks['data']:
-            if task['task_user'] is None:
-                await self.mark_task_complete(task['id'], task['name'], task['type'], http_client)
-            elif task['task_user']['completed'] is False:
+            print(task["name"])
+            if task["name"] not in self.skip_task and (
+                task['task_user'] is None or not task['task_user'].get('completed', True)
+            ):
                 await self.mark_task_complete(task['id'], task['name'], task['type'], http_client)
 
     async def mark_task_complete(self, task_id, task_name, type, http_client: aiohttp.ClientSession):

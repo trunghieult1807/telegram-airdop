@@ -41,6 +41,9 @@ env:
 	export $(cat .env | xargs)
 
 .PHONY: deploy
+EC2_USER=ec2-user
+EC2_IP=54.153.197.3
+KEY_PATH=../mrluas.pem
 deploy:
 	@docker save -o telegram-airdop-bot.tar telegram-airdop-bot:latest \
 	&& scp -i $(KEY_PATH) telegram-airdop-bot.tar $(EC2_USER)@$(EC2_IP):~/images/telegram-airdop-bot.tar \
