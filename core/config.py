@@ -39,7 +39,7 @@ class Settings(BaseSettings):
         
     def build_sessions_config(self):
         config_dict = self.dict()
-        return { session: SessionConfig(**config_dict.get(session)) for session in self.sessions }
+        return { session: SessionConfig(**config_dict.get(session, {})) for session in self.sessions }
     
     def get_session_run_apps(self, session: str) -> list[str]:
         if session not in self.sessions:
