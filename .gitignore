@@ -9,3 +9,4 @@ config.json
 user_agents.json
 .vscode/
 *.local.toml
+venv/
