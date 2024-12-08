@@ -10,3 +10,4 @@ user_agents.json
 .vscode/
 *.local.toml
 venv/
+.env.*

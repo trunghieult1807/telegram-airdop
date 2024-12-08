@@ -37,6 +37,7 @@ api_start_hunt = f'{api_endpoint}api/v1/bird-hunt/start'
 api_inv = f'{api_endpoint}api/v1/worms/me'
 api_sell = f'{api_endpoint}api/v1/market-item/add'
 new_user_api = f'{api_endpoint}api/v1/profile2'
+claim_gift_api = f"{api_endpoint}api/v1/gift-of-encounter"
 
 
 class Tapper:
@@ -601,7 +602,7 @@ class Tapper:
         return CloudflareScraper(headers=headers, connector=proxy_conn)
     
     async def __process(self, http_client: aiohttp.ClientSession) -> None:
-        detector.check_api_and_raise()
+        # detector.check_api_and_raise()
         
         if time.time() - self.access_token_created_time >= self.token_live_time:
             tg_web_data = await self.get_tg_web_data()
@@ -617,6 +618,8 @@ class Tapper:
             await self.setup_profile(http_client)
         await self.fetch_profile(http_client)
         
+        await self.claim_gift(http_client)
+
         if settings.AUTO_START_HUNT:
             bird_data = await self.get_bird_info(http_client)
             if bird_data is None:
@@ -739,6 +742,28 @@ class Tapper:
             await self.claim_streak_rewards(http_client)
             await asyncio.sleep(randint(1,4))
             await self.play_game(http_client)
+    
+    async def claim_gift(self, http_client: aiohttp.ClientSession):
+        gift = await http_client.get(claim_gift_api)
+        gift_ = await gift.json()
+        start_time = gift_['data']['next_claim_from']
+        end_time = gift_['data']['next_claim_to']
+
+        next_claim_from_dt = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        next_claim_to_dt = datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        is_within_range = next_claim_from_dt <= now <= next_claim_to_dt
+
+        if is_within_range:
+            res = await http_client.post(claim_gift_api)
+            if res.status == 200:
+                logger.success(f"{self.session_name} | <green>Christmas gift claimed successfully!</green>")
+            else:
+                logger.info(f"{self.session_name} | Failed to claim gift: {res.text}")
+
+        else:
+            logger.info(f"{self.session_name} | Christmas gift already claimed!")
+            return
     
     async def run_one_time(self) -> None:
         async with self.create_http_client() as http_client:
